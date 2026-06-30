@@ -1,0 +1,325 @@
+<!doctype html>
+<!--
+  AQUAPONICS NPV OPTIMIZER — standalone widget
+  =============================================
+  No build step, no npm. Uses Vue 3 loaded straight from a CDN.
+
+  HOW TO USE ON YOUR SITE (lorenasa.com on InfinityFree):
+    1. Change API_BASE below to your live Render backend URL
+       (you'll get this URL after deploying the backend — see the
+       deployment guide for step-by-step instructions).
+    2. Upload this file to your site via InfinityFree's File Manager
+       or FTP, e.g. as "optimizer.html".
+    3. Visit lorenasa.com/optimizer.html to see it live, or link to
+       it from your existing pages.
+
+  You can also embed this on an existing page using an iframe:
+    <iframe src="/optimizer.html" style="width:100%; height:900px; border:none;"></iframe>
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aquaponics NPV Optimizer</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 1.5rem; background: #F9FAFB; }
+
+  .aqo-shell {
+    --aqo-green:    #1E6B3A;
+    --aqo-green-lt: #E8F5ED;
+    --aqo-blue:     #1A4A7A;
+    --aqo-red:      #B91C1C;
+    --aqo-red-lt:   #FEE2E2;
+    --aqo-gold:     #92611A;
+    --aqo-border:   #D1D5DB;
+    --aqo-text:     #111827;
+    --aqo-muted:    #6B7280;
+    --aqo-bg:       #F9FAFB;
+    --aqo-card:     #FFFFFF;
+    --aqo-radius:   8px;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--aqo-text);
+    background: var(--aqo-bg);
+    border: 1px solid var(--aqo-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .aqo-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .aqo-header-text h2 { margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 700; color: var(--aqo-green); }
+  .aqo-header-text p { margin: 0; font-size: .875rem; color: var(--aqo-muted); }
+
+  .aqo-run-btn { background: var(--aqo-green); color: #fff; border: none; border-radius: var(--aqo-radius); padding: .625rem 1.5rem; font-size: .9rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s; }
+  .aqo-run-btn:hover:not(:disabled) { background: #155230; }
+  .aqo-run-btn:disabled { opacity: .6; cursor: not-allowed; }
+  .aqo-spinner { display: inline-block; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .aqo-warnings { display: flex; gap: .75rem; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: var(--aqo-radius); padding: .75rem 1rem; margin-bottom: 1rem; font-size: .8rem; color: var(--aqo-gold); }
+  .aqo-warning-icon { font-size: 1.1rem; flex-shrink: 0; }
+  .aqo-warnings ul { margin: 0; padding: 0 0 0 1rem; }
+  .aqo-warnings li { margin-bottom: .25rem; }
+  .aqo-error { background: var(--aqo-red-lt); border: 1px solid var(--aqo-red); border-radius: var(--aqo-radius); padding: .75rem 1rem; margin-bottom: 1rem; font-size: .875rem; color: var(--aqo-red); }
+
+  .aqo-body { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
+  @media (max-width: 720px) { .aqo-body { grid-template-columns: 1fr; } }
+
+  .aqo-inputs { display: flex; flex-direction: column; gap: .75rem; }
+  .aqo-section { background: var(--aqo-card); border: 1px solid var(--aqo-border); border-radius: var(--aqo-radius); padding: .875rem 1rem; }
+  .aqo-section-title { margin: 0 0 .625rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--aqo-green); }
+  .aqo-field { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .4rem; font-size: .8rem; }
+  .aqo-field span { color: var(--aqo-muted); flex: 1; }
+  .aqo-field input[type="number"] { width: 90px; border: 1px solid var(--aqo-border); border-radius: 5px; padding: .25rem .4rem; font-size: .8rem; text-align: right; background: var(--aqo-bg); color: var(--aqo-text); }
+  .aqo-field input[type="number"]:focus { outline: 2px solid var(--aqo-green); border-color: transparent; }
+
+  .aqo-results { display: flex; flex-direction: column; gap: 1rem; }
+  .aqo-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 200px; color: var(--aqo-muted); text-align: center; gap: .75rem; }
+  .aqo-placeholder-icon { font-size: 3rem; opacity: .3; }
+  .aqo-placeholder p { font-size: .875rem; max-width: 280px; margin: 0; }
+
+  .aqo-npv-card { border-radius: var(--aqo-radius); padding: 1.25rem 1.5rem; display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .aqo-npv-card.positive { background: var(--aqo-green-lt); border: 1.5px solid var(--aqo-green); }
+  .aqo-npv-card.negative { background: var(--aqo-red-lt); border: 1.5px solid var(--aqo-red); }
+  .aqo-npv-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--aqo-muted); }
+  .aqo-npv-value { font-size: 2rem; font-weight: 800; flex: 1; }
+  .aqo-npv-card.positive .aqo-npv-value { color: var(--aqo-green); }
+  .aqo-npv-card.negative .aqo-npv-value { color: var(--aqo-red); }
+  .aqo-npv-meta { font-size: .75rem; color: var(--aqo-muted); width: 100%; }
+
+  .aqo-result-section { background: var(--aqo-card); border: 1px solid var(--aqo-border); border-radius: var(--aqo-radius); padding: .875rem 1rem; }
+  .aqo-result-section h3 { margin: 0 0 .75rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--aqo-blue); }
+
+  .aqo-config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .5rem; }
+  .aqo-config-item { background: var(--aqo-bg); border: 1px solid var(--aqo-border); border-radius: 6px; padding: .5rem .625rem; display: flex; flex-direction: column; gap: .2rem; }
+  .aqo-config-label { font-size: .7rem; color: var(--aqo-muted); }
+  .aqo-config-value { font-size: .875rem; font-weight: 700; }
+  .aqo-config-value.highlight { color: var(--aqo-green); }
+  .aqo-config-value.on { color: var(--aqo-green); }
+  .aqo-config-value.off { color: var(--aqo-muted); }
+
+  .aqo-table { width: 100%; border-collapse: collapse; font-size: .825rem; }
+  .aqo-table td { padding: .3rem .25rem; }
+  .aqo-table td:last-child { text-align: right; font-weight: 600; }
+  .aqo-table tr:not(:last-child) td { border-bottom: 1px solid var(--aqo-border); }
+  .aqo-table tr.divider td { border-top: 2px solid var(--aqo-border); padding-top: .5rem; }
+  .positive-val { color: var(--aqo-green); }
+  .negative-val { color: var(--aqo-red); }
+
+  .aqo-cashflow-chart { display: flex; gap: .25rem; align-items: flex-end; }
+  .aqo-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+  .aqo-bar-label { font-size: .6rem; color: var(--aqo-muted); white-space: nowrap; }
+  .aqo-bar-track { width: 100%; height: 60px; background: var(--aqo-bg); border: 1px solid var(--aqo-border); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; }
+  .aqo-bar { width: 100%; border-radius: 3px; transition: height .3s ease; }
+  .aqo-bar.pos { background: var(--aqo-green); }
+  .aqo-bar.neg { background: var(--aqo-red-lt); border: 1px solid var(--aqo-red); }
+  .aqo-bar-val { font-size: .6rem; color: var(--aqo-muted); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// CHANGE THIS to your live Render backend URL once deployed
+// Example: 'https://aquaponics-optimizer.onrender.com'
+// ════════════════════════════════════════════════════════════════════════
+const API_BASE = 'https://aquaponics-optimizer.onrender.com';
+// ════════════════════════════════════════════════════════════════════════
+
+const { createApp, reactive, ref } = Vue;
+
+createApp({
+  setup() {
+    const params = reactive({
+      investment_cap: 100000,
+      cost_of_equity_rate: 0.15,
+      cost_of_debt_rate: 0.10,
+      fish_price: 50,
+      fish_size_kg: 0.5,
+      fish_qty: 12,
+      fish_loss_rate: 0.05,
+      fish_unit_cost: 2,
+      fish_logistics_cost: 2,
+      plant_price: 10,
+      plant_size_kg: 0.3,
+      plant_qty: 10,
+      plant_loss_rate: 0.05,
+      plant_unit_cost: 0.02,
+      plant_logistics_cost: 0.5,
+      max_boost: 0.11,
+    });
+
+    const result = ref(null);
+    const running = ref(false);
+    const error = ref(null);
+
+    async function runOptimizer() {
+      running.value = true;
+      error.value = null;
+      try {
+        const res = await fetch(`${API_BASE}/optimize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+        });
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.detail || res.statusText);
+        }
+        result.value = await res.json();
+      } catch (e) {
+        error.value = e.message + ' (Is the backend URL correct and the server awake? Free Render servers sleep after inactivity and can take ~30s to wake up on the first request.)';
+      } finally {
+        running.value = false;
+      }
+    }
+
+    function formatCurrency(v) {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
+    }
+    function formatKCompact(v) {
+      if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k';
+      return v.toFixed(0);
+    }
+    function maxAbs(arr) { return Math.max(...arr.map(Math.abs), 1); }
+    function barStyle(cf) {
+      const cashflows = result.value?.result?.year_cashflows ?? [];
+      const scale = maxAbs(cashflows);
+      const pct = Math.min(Math.abs(cf) / scale * 100, 100);
+      return { width: pct + '%' };
+    }
+
+    return { params, result, running, error, runOptimizer, formatCurrency, formatKCompact, barStyle };
+  },
+
+  template: `
+  <div class="aqo-shell">
+
+    <div class="aqo-header">
+      <div class="aqo-header-text">
+        <h2>Aquaponics NPV Optimizer</h2>
+        <p>Adjust your production parameters, then run the solver to find the optimal system configuration.</p>
+      </div>
+      <button class="aqo-run-btn" :class="{ loading: running }" @click="runOptimizer" :disabled="running">
+        <span v-if="!running">▶ Optimize</span>
+        <span v-else class="aqo-spinner">Solving…</span>
+      </button>
+    </div>
+
+    <div v-if="result?.warnings?.length" class="aqo-warnings">
+      <div class="aqo-warning-icon">⚠</div>
+      <ul><li v-for="w in result.warnings" :key="w">{{ w }}</li></ul>
+    </div>
+
+    <div v-if="error" class="aqo-error"><strong>Solver error:</strong> {{ error }}</div>
+
+    <div class="aqo-body">
+      <div class="aqo-inputs">
+
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">Investment</h3>
+          <label class="aqo-field"><span>Investment cap (\$)</span><input type="number" v-model.number="params.investment_cap" min="0" step="1000" /></label>
+          <label class="aqo-field"><span>Cost of equity rate</span><input type="number" v-model.number="params.cost_of_equity_rate" min="0" max="1" step="0.01" /></label>
+          <label class="aqo-field"><span>Cost of debt rate</span><input type="number" v-model.number="params.cost_of_debt_rate" min="0" max="1" step="0.01" /></label>
+        </section>
+
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">Fish Production</h3>
+          <label class="aqo-field"><span>Sell price (\$/kg)</span><input type="number" v-model.number="params.fish_price" min="0" step="0.5" /></label>
+          <label class="aqo-field"><span>Avg weight (kg)</span><input type="number" v-model.number="params.fish_size_kg" min="0" step="0.05" /></label>
+          <label class="aqo-field"><span>Batches/year</span><input type="number" v-model.number="params.fish_qty" min="0" step="1" /></label>
+          <label class="aqo-field"><span>Loss rate</span><input type="number" v-model.number="params.fish_loss_rate" min="0" max="1" step="0.01" /></label>
+          <label class="aqo-field"><span>Youngling cost (\$/unit)</span><input type="number" v-model.number="params.fish_unit_cost" min="0" step="0.1" /></label>
+          <label class="aqo-field"><span>Logistics cost (\$/unit)</span><input type="number" v-model.number="params.fish_logistics_cost" min="0" step="0.1" /></label>
+        </section>
+
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">Plant Production</h3>
+          <label class="aqo-field"><span>Sell price (\$/kg)</span><input type="number" v-model.number="params.plant_price" min="0" step="0.5" /></label>
+          <label class="aqo-field"><span>Avg weight (kg)</span><input type="number" v-model.number="params.plant_size_kg" min="0" step="0.05" /></label>
+          <label class="aqo-field"><span>Batches/year</span><input type="number" v-model.number="params.plant_qty" min="0" step="1" /></label>
+          <label class="aqo-field"><span>Loss rate</span><input type="number" v-model.number="params.plant_loss_rate" min="0" max="1" step="0.01" /></label>
+          <label class="aqo-field"><span>Youngling cost (\$/unit)</span><input type="number" v-model.number="params.plant_unit_cost" min="0" step="0.01" /></label>
+          <label class="aqo-field"><span>Logistics cost (\$/unit)</span><input type="number" v-model.number="params.plant_logistics_cost" min="0" step="0.1" /></label>
+        </section>
+
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">System</h3>
+          <label class="aqo-field"><span>Max efficiency boost cap</span><input type="number" v-model.number="params.max_boost" min="0" max="1" step="0.01" /></label>
+        </section>
+
+      </div>
+
+      <div class="aqo-results">
+        <div v-if="!result" class="aqo-placeholder">
+          <div class="aqo-placeholder-icon">⚙</div>
+          <p>Set your parameters and click <strong>Optimize</strong> to find the best configuration.</p>
+        </div>
+
+        <template v-else>
+          <div class="aqo-npv-card" :class="result.result.npv >= 0 ? 'positive' : 'negative'">
+            <div class="aqo-npv-label">Net Present Value</div>
+            <div class="aqo-npv-value">{{ formatCurrency(result.result.npv) }}</div>
+            <div class="aqo-npv-meta">Converged in {{ result.iterations }} iteration{{ result.iterations === 1 ? '' : 's' }}</div>
+          </div>
+
+          <section class="aqo-result-section">
+            <h3>Optimal Configuration</h3>
+            <div class="aqo-config-grid">
+              <div class="aqo-config-item"><span class="aqo-config-label">Hydroponic System</span><span class="aqo-config-value highlight">{{ result.variables.hydroponic_system }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Remineralization</span><span class="aqo-config-value" :class="result.variables.remineralization_choice ? 'on' : 'off'">{{ result.variables.remineralization_choice ? 'ON' : 'OFF' }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Anaerobic Digestion</span><span class="aqo-config-value" :class="result.variables.anaerobic_digestion_choice ? 'on' : 'off'">{{ result.variables.anaerobic_digestion_choice ? 'ON' : 'OFF' }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Biofilter Units</span><span class="aqo-config-value">{{ result.variables.biofilter_qty.toFixed(2) }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Own Investment</span><span class="aqo-config-value">{{ formatCurrency(result.variables.own_investment) }}</span></div>
+            </div>
+          </section>
+
+          <section class="aqo-result-section">
+            <h3>Financial Summary</h3>
+            <table class="aqo-table"><tbody>
+              <tr><td>Total Initial Investment</td><td>{{ formatCurrency(result.result.total_initial_investment) }}</td></tr>
+              <tr><td>Yearly Maintenance</td><td>{{ formatCurrency(result.result.yearly_maintenance) }}</td></tr>
+              <tr><td>Total Revenue (full year)</td><td class="positive-val">{{ formatCurrency(result.result.total_revenue) }}</td></tr>
+              <tr><td>Total Production Cost</td><td class="negative-val">{{ formatCurrency(result.result.total_production_cost) }}</td></tr>
+              <tr><td>Total Logistics Cost</td><td class="negative-val">{{ formatCurrency(result.result.total_logistics_cost) }}</td></tr>
+              <tr class="divider"><td>WACC</td><td>{{ (result.result.wacc * 100).toFixed(2) }}%</td></tr>
+              <tr><td>Equity share</td><td>{{ (result.result.equity_share * 100).toFixed(1) }}%</td></tr>
+              <tr><td>Debt share</td><td>{{ (result.result.debt_share * 100).toFixed(1) }}%</td></tr>
+            </tbody></table>
+          </section>
+
+          <section class="aqo-result-section">
+            <h3>Production</h3>
+            <table class="aqo-table"><tbody>
+              <tr><td>Fish sellable quantity</td><td>{{ result.result.fish_sellable_qty.toFixed(2) }} units/yr</td></tr>
+              <tr><td>Plant sellable quantity</td><td>{{ result.result.plant_sellable_qty.toFixed(2) }} units/yr</td></tr>
+              <tr><td>Fish efficiency boost</td><td>{{ (result.result.fish_boost * 100).toFixed(1) }}%</td></tr>
+              <tr><td>Plant efficiency boost</td><td>{{ (result.result.plant_boost * 100).toFixed(1) }}%</td></tr>
+            </tbody></table>
+          </section>
+
+          <section class="aqo-result-section">
+            <h3>10-Year Free Cash Flow</h3>
+            <div class="aqo-cashflow-chart">
+              <div v-for="(cf, i) in result.result.year_cashflows" :key="i" class="aqo-bar-wrap" :title="'Year ' + i + ': ' + formatCurrency(cf)">
+                <div class="aqo-bar-label">Yr {{ i }}</div>
+                <div class="aqo-bar-track"><div class="aqo-bar" :class="cf >= 0 ? 'pos' : 'neg'" :style="barStyle(cf)"></div></div>
+                <div class="aqo-bar-val">{{ formatKCompact(cf) }}</div>
+              </div>
+            </div>
+          </section>
+        </template>
+      </div>
+    </div>
+  </div>
+  `
+}).mount('#app');
+</script>
+
+</body>
+</html>

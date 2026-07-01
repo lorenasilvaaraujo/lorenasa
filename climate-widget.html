@@ -1,0 +1,419 @@
+<!doctype html>
+<!--
+  CLIMATE AVERAGES WIDGET — standalone
+  =====================================
+  Variables: temperature at 2m (high/low/mean), precipitation, evapotranspiration (ET₀)
+  Data: Open-Meteo archive API — last 3 complete years, averaged month by month.
+  No API key required.
+
+  Embed on any page:
+    <iframe src="/climate-widget.html" width="100%" height="760"
+            style="border:none; border-radius:12px;"></iframe>
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Climate Averages</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; padding: 1.5rem; background: #F9FAFB; font-family: 'Inter', system-ui, sans-serif; color: #111827; }
+
+.clm-shell {
+  --blue:   #1A4A7A;
+  --border: #D1D5DB;
+  --muted:  #6B7280;
+  --card:   #FFFFFF;
+  --bg:     #F9FAFB;
+  --radius: 8px;
+  --red:    #B91C1C;
+  max-width: 1100px;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+/* header */
+.clm-header { margin-bottom: 1.25rem; }
+.clm-header h2 { margin: 0 0 .2rem; font-size: 1.1rem; font-weight: 700; color: var(--blue); }
+.clm-header p  { margin: 0; font-size: .8rem; color: var(--muted); }
+
+/* search */
+.clm-search { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.clm-search input {
+  flex: 1; min-width: 180px; padding: .5rem .75rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: .875rem; background: var(--card); color: #111827; font-family: inherit;
+}
+.clm-search input:focus { outline: 2px solid var(--blue); border-color: transparent; }
+.clm-btn {
+  padding: .5rem 1.25rem; background: var(--blue); color: #fff;
+  border: none; border-radius: var(--radius); font-size: .875rem;
+  font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit;
+  transition: background .15s;
+}
+.clm-btn:hover:not(:disabled) { background: #12325a; }
+.clm-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* unit toggle */
+.clm-units { display: flex; gap: 6px; margin-bottom: 1rem; }
+.clm-ubtn {
+  padding: 3px 14px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); font-size: .8rem; cursor: pointer;
+  font-family: inherit; transition: all .15s;
+}
+.clm-ubtn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* city label */
+.clm-city  { font-size: 1rem; font-weight: 700; margin: 0 0 2px; }
+.clm-coord { font-size: .75rem; color: var(--muted); margin: 0 0 1rem; }
+.clm-range { font-size: .72rem; color: var(--muted); margin: -.7rem 0 1rem; font-style: italic; }
+
+/* metric cards */
+.clm-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
+.clm-metric  { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; }
+.clm-mlabel  { font-size: .68rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.clm-mval    { font-size: 1.05rem; font-weight: 700; }
+
+/* chart panels */
+.clm-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
+.clm-ptitle { font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--blue); margin: 0 0 .6rem; }
+.clm-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+.clm-li     { display: flex; align-items: center; gap: 5px; font-size: .73rem; color: var(--muted); }
+.clm-sw     { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.clm-cwrap  { position: relative; width: 100%; }
+
+/* states */
+.clm-status { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: .875rem; }
+.clm-err    { background: #FEE2E2; border: 1px solid var(--red); border-radius: var(--radius); padding: .75rem 1rem; margin-bottom: 1rem; font-size: .82rem; color: var(--red); }
+.clm-spin   { display: inline-block; animation: spin 1s ease-in-out infinite; }
+@keyframes spin { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.clm-credit { font-size: .68rem; color: var(--muted); text-align: right; margin-top: .5rem; }
+.clm-credit a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="clm-shell">
+
+  <div class="clm-header">
+    <h2>Climate Averages</h2>
+    <p>Temperature at 2 m, precipitation and evapotranspiration — monthly averages over the last 3 years.</p>
+  </div>
+
+  <div class="clm-search">
+    <input type="text" id="clmInput" placeholder="Enter a city, e.g. São Paulo…" />
+    <button class="clm-btn" id="clmBtn" onclick="clmGo()">Search</button>
+  </div>
+
+  <div id="clmErr"    class="clm-err"    style="display:none;"></div>
+  <div id="clmStatus" class="clm-status">Enter a city above to load its climate data.</div>
+
+  <div id="clmOut" style="display:none;">
+
+    <div class="clm-units">
+      <button class="clm-ubtn on" id="clmC" onclick="clmUnit('C')">°C</button>
+      <button class="clm-ubtn"    id="clmF" onclick="clmUnit('F')">°F</button>
+    </div>
+
+    <p class="clm-city"  id="clmCity"></p>
+    <p class="clm-coord" id="clmCoord"></p>
+    <p class="clm-range" id="clmRange"></p>
+
+    <div class="clm-metrics">
+      <div class="clm-metric"><div class="clm-mlabel">Hottest month</div> <div class="clm-mval" id="mHot"></div></div>
+      <div class="clm-metric"><div class="clm-mlabel">Coldest month</div> <div class="clm-mval" id="mCold"></div></div>
+      <div class="clm-metric"><div class="clm-mlabel">Annual avg temp</div><div class="clm-mval" id="mAvg"></div></div>
+      <div class="clm-metric"><div class="clm-mlabel">Wettest month</div> <div class="clm-mval" id="mWet"></div></div>
+      <div class="clm-metric"><div class="clm-mlabel">Driest month</div>  <div class="clm-mval" id="mDry"></div></div>
+      <div class="clm-metric"><div class="clm-mlabel">Peak ET₀ month</div><div class="clm-mval" id="mET"></div></div>
+    </div>
+
+    <!-- Temperature chart -->
+    <div class="clm-panel">
+      <p class="clm-ptitle">Monthly temperature at 2 m</p>
+      <div class="clm-legend">
+        <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;"></span>Avg high</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#9085e9;"></span>Avg mean</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#1baf7a;"></span>Avg low</span>
+      </div>
+      <div class="clm-cwrap" style="height:200px;">
+        <canvas id="cTemp" role="img" aria-label="Monthly temperature at 2 metres chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Precipitation chart -->
+    <div class="clm-panel">
+      <p class="clm-ptitle">Monthly precipitation (mm)</p>
+      <div class="clm-legend">
+        <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;"></span>Total precipitation</span>
+      </div>
+      <div class="clm-cwrap" style="height:160px;">
+        <canvas id="cPrecip" role="img" aria-label="Monthly precipitation chart"></canvas>
+      </div>
+    </div>
+
+    <!-- ET₀ chart -->
+    <div class="clm-panel">
+      <p class="clm-ptitle">Monthly ET₀ reference evapotranspiration (mm) — FAO-56 Penman-Monteith</p>
+      <div class="clm-legend">
+        <span class="clm-li"><span class="clm-sw" style="background:#eda100;"></span>ET₀</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;"></span>Precipitation (overlay)</span>
+      </div>
+      <div class="clm-cwrap" style="height:160px;">
+        <canvas id="cET" role="img" aria-label="Monthly ET0 evapotranspiration vs precipitation chart"></canvas>
+      </div>
+    </div>
+
+    <p class="clm-credit">Source: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Historical Weather API (ERA5) · CC BY 4.0 · 3-year average</p>
+  </div>
+
+</div>
+<script>
+// ─── constants ───────────────────────────────────────────────────────────────
+const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let D = null;          // aggregated monthly data
+let unit = 'C';
+let chTemp = null, chPrecip = null, chET = null;
+
+// ─── date range: last 3 complete years ───────────────────────────────────────
+function dateRange() {
+  const now  = new Date();
+  // end = last day of previous month
+  const end  = new Date(now.getFullYear(), now.getMonth(), 0);
+  // start = first day of same month, 3 years earlier
+  const start = new Date(end.getFullYear() - 3, end.getMonth(), 1);
+  const fmt = d => d.toISOString().slice(0, 10);
+  return { start: fmt(start), end: fmt(end),
+           label: fmt(start).slice(0,7) + ' → ' + fmt(end).slice(0,7) };
+}
+
+// ─── geocoding ───────────────────────────────────────────────────────────────
+async function geocode(q) {
+  const url = 'https://geocoding-api.open-meteo.com/v1/search'
+    + '?name=' + encodeURIComponent(q) + '&count=1&language=en&format=json';
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('Geocoding request failed (' + r.status + ')');
+  const j = await r.json();
+  if (!j.results || !j.results.length) return null;
+  return j.results[0];   // { latitude, longitude, name, country, admin1 }
+}
+
+// ─── archive fetch ───────────────────────────────────────────────────────────
+async function fetchArchive(lat, lon, start, end) {
+  const vars = [
+    'temperature_2m_max',
+    'temperature_2m_min',
+    'precipitation_sum',
+    'et0_fao_evapotranspiration'
+  ].join(',');
+  const url = 'https://archive-api.open-meteo.com/v1/archive'
+    + '?latitude='   + lat
+    + '&longitude='  + lon
+    + '&start_date=' + start
+    + '&end_date='   + end
+    + '&daily='      + vars
+    + '&timezone=auto';
+  const r = await fetch(url);
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error('Archive API request failed (' + r.status + '). ' + body.slice(0, 120));
+  }
+  return r.json();
+}
+
+// ─── aggregate daily → monthly averages ──────────────────────────────────────
+function aggregate(daily) {
+  const b = Array.from({ length: 12 }, () =>
+    ({ highs: [], lows: [], precip: [], et: [] })
+  );
+  for (let i = 0; i < daily.time.length; i++) {
+    const m = new Date(daily.time[i]).getMonth();
+    const push = (arr, v) => { if (v !== null && v !== undefined) arr.push(v); };
+    push(b[m].highs,  daily.temperature_2m_max[i]);
+    push(b[m].lows,   daily.temperature_2m_min[i]);
+    push(b[m].precip, daily.precipitation_sum[i]);
+    push(b[m].et,     daily.et0_fao_evapotranspiration[i]);
+  }
+  // average daily → monthly:
+  // precip & ET are daily sums → multiply avg by 30 to get monthly total
+  return b.map(x => ({
+    avgHigh:  avg(x.highs),
+    avgLow:   avg(x.lows),
+    avgMean:  (avg(x.highs) + avg(x.lows)) / 2,
+    precip:   avg(x.precip) * 30,
+    et:       avg(x.et) * 30
+  }));
+}
+function avg(a) { return a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0; }
+
+// ─── unit helpers ─────────────────────────────────────────────────────────────
+function toF(c) { return c * 9 / 5 + 32; }
+function conv(c){ return unit === 'C' ? c : toF(c); }
+function fmtT(c){ return Math.round(conv(c)) + '°' + unit; }
+
+// ─── main search ─────────────────────────────────────────────────────────────
+async function clmGo() {
+  const q = document.getElementById('clmInput').value.trim();
+  if (!q) return;
+
+  setStatus('<span class="clm-spin">Looking up ' + esc(q) + '…</span>');
+  hide('clmOut'); hide('clmErr');
+  document.getElementById('clmBtn').disabled = true;
+
+  try {
+    // 1. geocode
+    const loc = await geocode(q);
+    if (!loc) {
+      showErr('City not found. Try adding the country name, e.g. "Toledo, Spain".');
+      return;
+    }
+    const { latitude: lat, longitude: lon, name, country, admin1 } = loc;
+
+    // 2. date range
+    const { start, end, label } = dateRange();
+    setStatus('<span class="clm-spin">Fetching 3 years of historical data…</span>');
+
+    // 3. fetch
+    const json = await fetchArchive(lat, lon, start, end);
+
+    if (!json.daily || !json.daily.time || !json.daily.time.length) {
+      showErr('No historical data returned for this location. Try a nearby larger city.');
+      return;
+    }
+
+    // 4. aggregate
+    D = aggregate(json.daily);
+
+    // 5. populate labels
+    document.getElementById('clmCity').textContent  = name;
+    document.getElementById('clmCoord').textContent =
+      [admin1, country].filter(Boolean).join(', ')
+      + ' · ' + lat.toFixed(3) + '°, ' + lon.toFixed(3) + '°';
+    document.getElementById('clmRange').textContent = 'Data range: ' + label;
+
+    // 6. render
+    render();
+    hideStatus();
+    show('clmOut');
+
+  } catch (err) {
+    // Show the real error message to help debugging
+    showErr('Error: ' + err.message);
+  } finally {
+    document.getElementById('clmBtn').disabled = false;
+  }
+}
+
+// ─── render metrics + charts ─────────────────────────────────────────────────
+function render() {
+  const d = D;
+  const hotI  = d.reduce((mi, v, i, a) => v.avgHigh  > a[mi].avgHigh  ? i : mi, 0);
+  const coldI = d.reduce((mi, v, i, a) => v.avgLow   < a[mi].avgLow   ? i : mi, 0);
+  const wetI  = d.reduce((mi, v, i, a) => v.precip   > a[mi].precip   ? i : mi, 0);
+  const dryI  = d.reduce((mi, v, i, a) => v.precip   < a[mi].precip   ? i : mi, 0);
+  const etI   = d.reduce((mi, v, i, a) => v.et       > a[mi].et       ? i : mi, 0);
+  const annT  = d.reduce((s, v) => s + v.avgMean, 0) / 12;
+
+  setText('mHot',  MO[hotI]  + ' ' + fmtT(d[hotI].avgHigh));
+  setText('mCold', MO[coldI] + ' ' + fmtT(d[coldI].avgLow));
+  setText('mAvg',  fmtT(annT));
+  setText('mWet',  MO[wetI]  + ' ' + Math.round(d[wetI].precip)  + ' mm');
+  setText('mDry',  MO[dryI]  + ' ' + Math.round(d[dryI].precip)  + ' mm');
+  setText('mET',   MO[etI]   + ' ' + Math.round(d[etI].et)       + ' mm');
+
+  const highs   = d.map(v => Math.round(conv(v.avgHigh)));
+  const lows    = d.map(v => Math.round(conv(v.avgLow)));
+  const means   = d.map(v => Math.round(conv(v.avgMean)));
+  const precips = d.map(v => Math.round(v.precip));
+  const ets     = d.map(v => Math.round(v.et));
+
+  const gridColor = 'rgba(0,0,0,0.06)';
+  const tickStyle = { color: '#6B7280', font: { size: 11 } };
+
+  // Temperature
+  if (chTemp) chTemp.destroy();
+  chTemp = new Chart(document.getElementById('cTemp'), {
+    type: 'line',
+    data: {
+      labels: MO,
+      datasets: [
+        { label:'Avg high', data:highs, borderColor:'#2a78d6', backgroundColor:'rgba(42,120,214,0.07)',  borderWidth:2, pointRadius:3, pointBackgroundColor:'#2a78d6', tension:0.4, fill:false },
+        { label:'Avg mean', data:means, borderColor:'#9085e9', backgroundColor:'rgba(144,133,233,0.05)', borderWidth:2, pointRadius:3, pointBackgroundColor:'#9085e9', tension:0.4, fill:false, borderDash:[5,3] },
+        { label:'Avg low',  data:lows,  borderColor:'#1baf7a', backgroundColor:'rgba(27,175,122,0.07)',  borderWidth:2, pointRadius:3, pointBackgroundColor:'#1baf7a', tension:0.4, fill:false }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '°' + unit } } },
+      scales:{
+        x:{ grid:{color:gridColor}, ticks:tickStyle },
+        y:{ grid:{color:gridColor}, ticks:{ ...tickStyle, callback: v => v + '°' + unit } }
+      }
+    }
+  });
+
+  // Precipitation
+  if (chPrecip) chPrecip.destroy();
+  chPrecip = new Chart(document.getElementById('cPrecip'), {
+    type:'bar',
+    data:{ labels:MO, datasets:[{ label:'Precipitation', data:precips, backgroundColor:'rgba(42,120,214,0.7)', borderRadius:4, borderSkipped:false }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.parsed.y + ' mm' } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:tickStyle },
+        y:{ grid:{color:gridColor}, ticks:{ ...tickStyle, callback: v => v + ' mm' }, beginAtZero:true }
+      }
+    }
+  });
+
+  // ET₀ vs Precipitation (overlay)
+  if (chET) chET.destroy();
+  chET = new Chart(document.getElementById('cET'), {
+    type:'bar',
+    data:{
+      labels:MO,
+      datasets:[
+        { label:'ET₀',          data:ets,     backgroundColor:'rgba(237,161,0,0.75)',   borderRadius:4, borderSkipped:false, order:2 },
+        { label:'Precipitation', data:precips, backgroundColor:'rgba(42,120,214,0.45)',  borderRadius:4, borderSkipped:false, order:1 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + ' mm' } }
+      },
+      scales:{
+        x:{ grid:{display:false}, ticks:tickStyle },
+        y:{ grid:{color:gridColor}, ticks:{ ...tickStyle, callback: v => v + ' mm' }, beginAtZero:true }
+      }
+    }
+  });
+}
+
+// ─── unit toggle ──────────────────────────────────────────────────────────────
+function clmUnit(u) {
+  unit = u;
+  document.getElementById('clmC').classList.toggle('on', u === 'C');
+  document.getElementById('clmF').classList.toggle('on', u === 'F');
+  if (D) render();
+}
+
+// ─── DOM helpers ──────────────────────────────────────────────────────────────
+document.getElementById('clmInput').addEventListener('keydown', e => { if (e.key === 'Enter') clmGo(); });
+function setStatus(html) { const el = document.getElementById('clmStatus'); el.innerHTML = html; el.style.display = 'block'; }
+function hideStatus()    { document.getElementById('clmStatus').style.display = 'none'; }
+function show(id)        { document.getElementById(id).style.display = 'block'; }
+function hide(id)        { document.getElementById(id).style.display = 'none'; }
+function setText(id, t)  { document.getElementById(id).textContent = t; }
+function showErr(msg)    { const el = document.getElementById('clmErr'); el.textContent = msg; el.style.display = 'block'; hideStatus(); }
+function esc(s)          { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+</script>
+</body>
+</html>

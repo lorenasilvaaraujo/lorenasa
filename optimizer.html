@@ -1,20 +1,9 @@
 <!doctype html>
 <!--
-  AQUAPONICS NPV OPTIMIZER — standalone widget
-  =============================================
-  No build step, no npm. Uses Vue 3 loaded straight from a CDN.
-
-  HOW TO USE ON YOUR SITE (lorenasa.com on InfinityFree):
-    1. Change API_BASE below to your live Render backend URL
-       (you'll get this URL after deploying the backend — see the
-       deployment guide for step-by-step instructions).
-    2. Upload this file to your site via InfinityFree's File Manager
-       or FTP, e.g. as "optimizer.html".
-    3. Visit lorenasa.com/optimizer.html to see it live, or link to
-       it from your existing pages.
-
-  You can also embed this on an existing page using an iframe:
-    <iframe src="/optimizer.html" style="width:100%; height:900px; border:none;"></iframe>
+  AQUAPONICS NPV OPTIMIZER + CLIMATE AVERAGES WIDGET
+  ===================================================
+  Render backend: https://aquaponics-optimizer.onrender.com
+  Climate data:   Open-Meteo ERA5 archive (no key needed)
 -->
 <html lang="en">
 <head>
@@ -28,6 +17,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; padding: 1.5rem; background: #F9FAFB; }
 
+  /* ── Optimizer ── */
   .aqo-shell {
     --aqo-green:    #1E6B3A;
     --aqo-green-lt: #E8F5ED;
@@ -50,26 +40,21 @@
     max-width: 1100px;
     margin: 0 auto;
   }
-
   .aqo-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
   .aqo-header-text h2 { margin: 0 0 .25rem; font-size: 1.25rem; font-weight: 700; color: var(--aqo-green); }
   .aqo-header-text p { margin: 0; font-size: .875rem; color: var(--aqo-muted); }
-
   .aqo-run-btn { background: var(--aqo-green); color: #fff; border: none; border-radius: var(--aqo-radius); padding: .625rem 1.5rem; font-size: .9rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s; }
   .aqo-run-btn:hover:not(:disabled) { background: #155230; }
   .aqo-run-btn:disabled { opacity: .6; cursor: not-allowed; }
   .aqo-spinner { display: inline-block; animation: pulse 1s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-
   .aqo-warnings { display: flex; gap: .75rem; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: var(--aqo-radius); padding: .75rem 1rem; margin-bottom: 1rem; font-size: .8rem; color: var(--aqo-gold); }
   .aqo-warning-icon { font-size: 1.1rem; flex-shrink: 0; }
   .aqo-warnings ul { margin: 0; padding: 0 0 0 1rem; }
   .aqo-warnings li { margin-bottom: .25rem; }
   .aqo-error { background: var(--aqo-red-lt); border: 1px solid var(--aqo-red); border-radius: var(--aqo-radius); padding: .75rem 1rem; margin-bottom: 1rem; font-size: .875rem; color: var(--aqo-red); }
-
   .aqo-body { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
   @media (max-width: 720px) { .aqo-body { grid-template-columns: 1fr; } }
-
   .aqo-inputs { display: flex; flex-direction: column; gap: .75rem; }
   .aqo-section { background: var(--aqo-card); border: 1px solid var(--aqo-border); border-radius: var(--aqo-radius); padding: .875rem 1rem; }
   .aqo-section-title { margin: 0 0 .625rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--aqo-green); }
@@ -77,12 +62,10 @@
   .aqo-field span { color: var(--aqo-muted); flex: 1; }
   .aqo-field input[type="number"] { width: 90px; border: 1px solid var(--aqo-border); border-radius: 5px; padding: .25rem .4rem; font-size: .8rem; text-align: right; background: var(--aqo-bg); color: var(--aqo-text); }
   .aqo-field input[type="number"]:focus { outline: 2px solid var(--aqo-green); border-color: transparent; }
-
   .aqo-results { display: flex; flex-direction: column; gap: 1rem; }
   .aqo-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 200px; color: var(--aqo-muted); text-align: center; gap: .75rem; }
   .aqo-placeholder-icon { font-size: 3rem; opacity: .3; }
   .aqo-placeholder p { font-size: .875rem; max-width: 280px; margin: 0; }
-
   .aqo-npv-card { border-radius: var(--aqo-radius); padding: 1.25rem 1.5rem; display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
   .aqo-npv-card.positive { background: var(--aqo-green-lt); border: 1.5px solid var(--aqo-green); }
   .aqo-npv-card.negative { background: var(--aqo-red-lt); border: 1.5px solid var(--aqo-red); }
@@ -91,10 +74,8 @@
   .aqo-npv-card.positive .aqo-npv-value { color: var(--aqo-green); }
   .aqo-npv-card.negative .aqo-npv-value { color: var(--aqo-red); }
   .aqo-npv-meta { font-size: .75rem; color: var(--aqo-muted); width: 100%; }
-
   .aqo-result-section { background: var(--aqo-card); border: 1px solid var(--aqo-border); border-radius: var(--aqo-radius); padding: .875rem 1rem; }
   .aqo-result-section h3 { margin: 0 0 .75rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--aqo-blue); }
-
   .aqo-config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .5rem; }
   .aqo-config-item { background: var(--aqo-bg); border: 1px solid var(--aqo-border); border-radius: 6px; padding: .5rem .625rem; display: flex; flex-direction: column; gap: .2rem; }
   .aqo-config-label { font-size: .7rem; color: var(--aqo-muted); }
@@ -102,7 +83,6 @@
   .aqo-config-value.highlight { color: var(--aqo-green); }
   .aqo-config-value.on { color: var(--aqo-green); }
   .aqo-config-value.off { color: var(--aqo-muted); }
-
   .aqo-table { width: 100%; border-collapse: collapse; font-size: .825rem; }
   .aqo-table td { padding: .3rem .25rem; }
   .aqo-table td:last-child { text-align: right; font-weight: 600; }
@@ -110,7 +90,6 @@
   .aqo-table tr.divider td { border-top: 2px solid var(--aqo-border); padding-top: .5rem; }
   .positive-val { color: var(--aqo-green); }
   .negative-val { color: var(--aqo-red); }
-
   .aqo-cashflow-chart { display: flex; gap: .25rem; align-items: flex-end; }
   .aqo-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
   .aqo-bar-label { font-size: .6rem; color: var(--aqo-muted); white-space: nowrap; }
@@ -120,270 +99,73 @@
   .aqo-bar.neg { background: var(--aqo-red-lt); border: 1px solid var(--aqo-red); }
   .aqo-bar-val { font-size: .6rem; color: var(--aqo-muted); white-space: nowrap; }
 
-  /* ══════════════════════════════════════════════════════
-     CLIMATE WIDGET — added below the NPV Optimizer
-     ══════════════════════════════════════════════════════ */
-  .clm-wrap{max-width:1100px;margin:2rem auto 0;border:1px solid #D1D5DB;border-radius:12px;padding:1.5rem;background:#F9FAFB;font-family:'Inter',system-ui,sans-serif;color:#111827;}
-  .clm-wrap h2{margin:0 0 .2rem;font-size:1.1rem;font-weight:700;color:#1A4A7A;}
-  .clm-sub{margin:0 0 1.25rem;font-size:.8rem;color:#6B7280;}
-  .clm-search{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;}
-  .clm-search input{flex:1;min-width:180px;padding:.5rem .75rem;border:1px solid #D1D5DB;border-radius:8px;font-size:.875rem;background:#fff;color:#111827;font-family:inherit;}
-  .clm-search input:focus{outline:2px solid #1A4A7A;border-color:transparent;}
-  .clm-sbtn{padding:.5rem 1.25rem;background:#1A4A7A;color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;}
-  .clm-sbtn:hover:not(:disabled){background:#12325a;}
-  .clm-sbtn:disabled{opacity:.55;cursor:not-allowed;}
-  .clm-export{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem;}
-  .clm-export-label{font-size:.75rem;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
-  .clm-ebtn{padding:.35rem 1rem;background:transparent;color:#1A4A7A;border:1.5px solid #1A4A7A;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s,color .15s;display:flex;align-items:center;gap:5px;}
-  .clm-ebtn:hover{background:#1A4A7A;color:#fff;}
-  .clm-ebtn svg{width:14px;height:14px;flex-shrink:0;}
-  .clm-units{display:flex;gap:6px;margin-bottom:1rem;}
-  .clm-ubtn{padding:3px 14px;border-radius:8px;border:1px solid #D1D5DB;background:transparent;color:#6B7280;font-size:.8rem;cursor:pointer;font-family:inherit;transition:all .15s;}
-  .clm-ubtn.on{background:#1A4A7A;color:#fff;border-color:#1A4A7A;}
-  .clm-city{font-size:1rem;font-weight:700;margin:0 0 2px;}
-  .clm-coord{font-size:.75rem;color:#6B7280;margin:0 0 .25rem;}
-  .clm-range{font-size:.72rem;color:#6B7280;margin:0 0 1rem;font-style:italic;}
-  .clm-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.25rem;}
-  .clm-metric{background:#fff;border:1px solid #D1D5DB;border-radius:8px;padding:.75rem 1rem;}
-  .clm-mlabel{font-size:.68rem;color:#6B7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;}
-  .clm-mval{font-size:1.05rem;font-weight:700;}
-  .clm-panel{background:#fff;border:1px solid #D1D5DB;border-radius:8px;padding:1rem;margin-bottom:1rem;}
-  .clm-ptitle{font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1A4A7A;margin:0 0 .6rem;}
-  .clm-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
-  .clm-li{display:flex;align-items:center;gap:5px;font-size:.73rem;color:#6B7280;}
-  .clm-sw{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
-  .clm-cwrap{position:relative;width:100%;}
-  .clm-tbl-wrap{overflow-x:auto;margin-top:.5rem;}
-  .clm-tbl{width:100%;border-collapse:collapse;font-size:.78rem;}
-  .clm-tbl th{background:#F9FAFB;color:#1A4A7A;font-weight:700;text-align:right;padding:.4rem .6rem;border-bottom:2px solid #D1D5DB;white-space:nowrap;}
-  .clm-tbl th:first-child{text-align:left;}
-  .clm-tbl td{padding:.35rem .6rem;border-bottom:1px solid #D1D5DB;text-align:right;white-space:nowrap;}
-  .clm-tbl td:first-child{text-align:left;font-weight:600;color:#1A4A7A;}
-  .clm-tbl tr:last-child td{border-bottom:none;font-weight:700;background:#F9FAFB;}
-  .clm-status{text-align:center;padding:2rem 1rem;color:#6B7280;font-size:.875rem;}
-  .clm-err{background:#FEE2E2;border:1px solid #B91C1C;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.82rem;color:#B91C1C;}
-  .clm-spin{display:inline-block;animation:clmsp 1s ease-in-out infinite;}
-  @keyframes clmsp{0%,100%{opacity:1}50%{opacity:.3}}
-  .clm-credit{font-size:.68rem;color:#6B7280;text-align:right;margin-top:.5rem;}
-  .clm-credit a{color:#6B7280;}
+  /* ── Climate Widget ── */
+  .clm-wrap { max-width:1100px; margin:2rem auto 0; border:1px solid #D1D5DB; border-radius:12px; padding:1.5rem; background:#F9FAFB; font-family:'Inter',system-ui,sans-serif; color:#111827; }
+  .clm-wrap h2 { margin:0 0 .2rem; font-size:1.1rem; font-weight:700; color:#1A4A7A; }
+  .clm-sub { margin:0 0 1.25rem; font-size:.8rem; color:#6B7280; }
+  .clm-search { display:flex; gap:8px; margin-bottom:1.25rem; flex-wrap:wrap; }
+  .clm-search input { flex:1; min-width:180px; padding:.5rem .75rem; border:1px solid #D1D5DB; border-radius:8px; font-size:.875rem; background:#fff; color:#111827; font-family:inherit; }
+  .clm-search input:focus { outline:2px solid #1A4A7A; border-color:transparent; }
+  .clm-sbtn { padding:.5rem 1.25rem; background:#1A4A7A; color:#fff; border:none; border-radius:8px; font-size:.875rem; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s; }
+  .clm-sbtn:hover:not(:disabled) { background:#12325a; }
+  .clm-sbtn:disabled { opacity:.55; cursor:not-allowed; }
+  .clm-export { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:1.25rem; }
+  .clm-export-label { font-size:.75rem; color:#6B7280; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+  .clm-ebtn { padding:.35rem 1rem; background:transparent; color:#1A4A7A; border:1.5px solid #1A4A7A; border-radius:8px; font-size:.8rem; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,color .15s; display:flex; align-items:center; gap:5px; }
+  .clm-ebtn:hover { background:#1A4A7A; color:#fff; }
+  .clm-ebtn svg { width:14px; height:14px; flex-shrink:0; }
+  .clm-units { display:flex; gap:6px; margin-bottom:1rem; }
+  .clm-ubtn { padding:3px 14px; border-radius:8px; border:1px solid #D1D5DB; background:transparent; color:#6B7280; font-size:.8rem; cursor:pointer; font-family:inherit; transition:all .15s; }
+  .clm-ubtn.on { background:#1A4A7A; color:#fff; border-color:#1A4A7A; }
+  .clm-city  { font-size:1rem; font-weight:700; margin:0 0 2px; }
+  .clm-coord { font-size:.75rem; color:#6B7280; margin:0 0 .25rem; }
+  .clm-range { font-size:.72rem; color:#6B7280; margin:0 0 1rem; font-style:italic; }
+  .clm-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:1.25rem; }
+  .clm-metric  { background:#fff; border:1px solid #D1D5DB; border-radius:8px; padding:.75rem 1rem; }
+  .clm-mlabel  { font-size:.68rem; color:#6B7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+  .clm-mval    { font-size:1.05rem; font-weight:700; }
+  .clm-panel   { background:#fff; border:1px solid #D1D5DB; border-radius:8px; padding:1rem; margin-bottom:1rem; }
+  .clm-ptitle  { font-size:.73rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#1A4A7A; margin:0 0 .6rem; }
+  .clm-legend  { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:8px; }
+  .clm-li      { display:flex; align-items:center; gap:5px; font-size:.73rem; color:#6B7280; }
+  .clm-sw      { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+  .clm-cwrap   { position:relative; width:100%; }
+  .clm-tbl-wrap { overflow-x:auto; margin-top:.5rem; }
+  .clm-tbl { width:100%; border-collapse:collapse; font-size:.78rem; }
+  .clm-tbl th { background:#F9FAFB; color:#1A4A7A; font-weight:700; text-align:right; padding:.4rem .6rem; border-bottom:2px solid #D1D5DB; white-space:nowrap; }
+  .clm-tbl th:first-child { text-align:left; }
+  .clm-tbl td { padding:.35rem .6rem; border-bottom:1px solid #D1D5DB; text-align:right; white-space:nowrap; }
+  .clm-tbl td:first-child { text-align:left; font-weight:600; color:#1A4A7A; }
+  .clm-tbl tr:last-child td { border-bottom:none; font-weight:700; background:#F9FAFB; }
+  .clm-status { text-align:center; padding:2rem 1rem; color:#6B7280; font-size:.875rem; }
+  .clm-err    { background:#FEE2E2; border:1px solid #B91C1C; border-radius:8px; padding:.75rem 1rem; margin-bottom:1rem; font-size:.82rem; color:#B91C1C; }
+  .clm-spin   { display:inline-block; animation:clmsp 1s ease-in-out infinite; }
+  @keyframes clmsp { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .clm-credit { font-size:.68rem; color:#6B7280; text-align:right; margin-top:.5rem; }
+  .clm-credit a { color:#6B7280; }
+  @media print {
+    body { padding:0; background:#fff; }
+    .aqo-shell, .clm-search, .clm-units, .clm-export, .clm-panel,
+    .clm-metrics, .clm-status, .clm-credit { display:none !important; }
+    .clm-wrap { border:none; padding:0; margin:0; }
+    #clmPrintSec { display:block !important; }
+    .clm-tbl th, .clm-tbl td { border:1px solid #ccc !important; }
+  }
 </style>
 </head>
 <body>
 
+<!-- ── Optimizer ───────────────────────────────────────────────── -->
 <div id="app"></div>
 
-<script>
-// ════════════════════════════════════════════════════════════════════════
-// CHANGE THIS to your live Render backend URL once deployed
-// Example: 'https://aquaponics-optimizer.onrender.com'
-// ════════════════════════════════════════════════════════════════════════
-const API_BASE = 'https://aquaponics-optimizer.onrender.com';
-// ════════════════════════════════════════════════════════════════════════
-
-const { createApp, reactive, ref } = Vue;
-
-createApp({
-  setup() {
-    const params = reactive({
-      investment_cap: 100000,
-      cost_of_equity_rate: 0.15,
-      cost_of_debt_rate: 0.10,
-      fish_price: 50,
-      fish_size_kg: 0.5,
-      fish_qty: 12,
-      fish_loss_rate: 0.05,
-      fish_unit_cost: 2,
-      fish_logistics_cost: 2,
-      plant_price: 10,
-      plant_size_kg: 0.3,
-      plant_qty: 10,
-      plant_loss_rate: 0.05,
-      plant_unit_cost: 0.02,
-      plant_logistics_cost: 0.5,
-      max_boost: 0.11,
-    });
-
-    const result = ref(null);
-    const running = ref(false);
-    const error = ref(null);
-
-    async function runOptimizer() {
-      running.value = true;
-      error.value = null;
-      try {
-        const res = await fetch(`${API_BASE}/optimize`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
-        });
-        if (!res.ok) {
-          const body = await res.json();
-          throw new Error(body.detail || res.statusText);
-        }
-        result.value = await res.json();
-      } catch (e) {
-        error.value = e.message + ' (Is the backend URL correct and the server awake? Free Render servers sleep after inactivity and can take ~30s to wake up on the first request.)';
-      } finally {
-        running.value = false;
-      }
-    }
-
-    function formatCurrency(v) {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
-    }
-    function formatKCompact(v) {
-      if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k';
-      return v.toFixed(0);
-    }
-    function maxAbs(arr) { return Math.max(...arr.map(Math.abs), 1); }
-    function barStyle(cf) {
-      const cashflows = result.value?.result?.year_cashflows ?? [];
-      const scale = maxAbs(cashflows);
-      const pct = Math.min(Math.abs(cf) / scale * 100, 100);
-      return { width: pct + '%' };
-    }
-
-    return { params, result, running, error, runOptimizer, formatCurrency, formatKCompact, barStyle };
-  },
-
-  template: `
-  <div class="aqo-shell">
-
-    <div class="aqo-header">
-      <div class="aqo-header-text">
-        <h2>Aquaponics NPV Optimizer</h2>
-        <p>Adjust your production parameters, then run the solver to find the optimal system configuration.</p>
-      </div>
-      <button class="aqo-run-btn" :class="{ loading: running }" @click="runOptimizer" :disabled="running">
-        <span v-if="!running">▶ Optimize</span>
-        <span v-else class="aqo-spinner">Solving…</span>
-      </button>
-    </div>
-
-    <div v-if="result?.warnings?.length" class="aqo-warnings">
-      <div class="aqo-warning-icon">⚠</div>
-      <ul><li v-for="w in result.warnings" :key="w">{{ w }}</li></ul>
-    </div>
-
-    <div v-if="error" class="aqo-error"><strong>Solver error:</strong> {{ error }}</div>
-
-    <div class="aqo-body">
-      <div class="aqo-inputs">
-
-        <section class="aqo-section">
-          <h3 class="aqo-section-title">Investment</h3>
-          <label class="aqo-field"><span>Investment cap (\$)</span><input type="number" v-model.number="params.investment_cap" min="0" step="1000" /></label>
-          <label class="aqo-field"><span>Cost of equity rate</span><input type="number" v-model.number="params.cost_of_equity_rate" min="0" max="1" step="0.01" /></label>
-          <label class="aqo-field"><span>Cost of debt rate</span><input type="number" v-model.number="params.cost_of_debt_rate" min="0" max="1" step="0.01" /></label>
-        </section>
-
-        <section class="aqo-section">
-          <h3 class="aqo-section-title">Fish Production</h3>
-          <label class="aqo-field"><span>Sell price (\$/kg)</span><input type="number" v-model.number="params.fish_price" min="0" step="0.5" /></label>
-          <label class="aqo-field"><span>Avg weight (kg)</span><input type="number" v-model.number="params.fish_size_kg" min="0" step="0.05" /></label>
-          <label class="aqo-field"><span>Batches/year</span><input type="number" v-model.number="params.fish_qty" min="0" step="1" /></label>
-          <label class="aqo-field"><span>Loss rate</span><input type="number" v-model.number="params.fish_loss_rate" min="0" max="1" step="0.01" /></label>
-          <label class="aqo-field"><span>Youngling cost (\$/unit)</span><input type="number" v-model.number="params.fish_unit_cost" min="0" step="0.1" /></label>
-          <label class="aqo-field"><span>Logistics cost (\$/unit)</span><input type="number" v-model.number="params.fish_logistics_cost" min="0" step="0.1" /></label>
-        </section>
-
-        <section class="aqo-section">
-          <h3 class="aqo-section-title">Plant Production</h3>
-          <label class="aqo-field"><span>Sell price (\$/kg)</span><input type="number" v-model.number="params.plant_price" min="0" step="0.5" /></label>
-          <label class="aqo-field"><span>Avg weight (kg)</span><input type="number" v-model.number="params.plant_size_kg" min="0" step="0.05" /></label>
-          <label class="aqo-field"><span>Batches/year</span><input type="number" v-model.number="params.plant_qty" min="0" step="1" /></label>
-          <label class="aqo-field"><span>Loss rate</span><input type="number" v-model.number="params.plant_loss_rate" min="0" max="1" step="0.01" /></label>
-          <label class="aqo-field"><span>Youngling cost (\$/unit)</span><input type="number" v-model.number="params.plant_unit_cost" min="0" step="0.01" /></label>
-          <label class="aqo-field"><span>Logistics cost (\$/unit)</span><input type="number" v-model.number="params.plant_logistics_cost" min="0" step="0.1" /></label>
-        </section>
-
-        <section class="aqo-section">
-          <h3 class="aqo-section-title">System</h3>
-          <label class="aqo-field"><span>Max efficiency boost cap</span><input type="number" v-model.number="params.max_boost" min="0" max="1" step="0.01" /></label>
-        </section>
-
-      </div>
-
-      <div class="aqo-results">
-        <div v-if="!result" class="aqo-placeholder">
-          <div class="aqo-placeholder-icon">⚙</div>
-          <p>Set your parameters and click <strong>Optimize</strong> to find the best configuration.</p>
-        </div>
-
-        <template v-else>
-          <div class="aqo-npv-card" :class="result.result.npv >= 0 ? 'positive' : 'negative'">
-            <div class="aqo-npv-label">Net Present Value</div>
-            <div class="aqo-npv-value">{{ formatCurrency(result.result.npv) }}</div>
-            <div class="aqo-npv-meta">Converged in {{ result.iterations }} iteration{{ result.iterations === 1 ? '' : 's' }}</div>
-          </div>
-
-          <section class="aqo-result-section">
-            <h3>Optimal Configuration</h3>
-            <div class="aqo-config-grid">
-              <div class="aqo-config-item"><span class="aqo-config-label">Hydroponic System</span><span class="aqo-config-value highlight">{{ result.variables.hydroponic_system }}</span></div>
-              <div class="aqo-config-item"><span class="aqo-config-label">Remineralization</span><span class="aqo-config-value" :class="result.variables.remineralization_choice ? 'on' : 'off'">{{ result.variables.remineralization_choice ? 'ON' : 'OFF' }}</span></div>
-              <div class="aqo-config-item"><span class="aqo-config-label">Anaerobic Digestion</span><span class="aqo-config-value" :class="result.variables.anaerobic_digestion_choice ? 'on' : 'off'">{{ result.variables.anaerobic_digestion_choice ? 'ON' : 'OFF' }}</span></div>
-              <div class="aqo-config-item"><span class="aqo-config-label">Biofilter Units</span><span class="aqo-config-value">{{ result.variables.biofilter_qty.toFixed(2) }}</span></div>
-              <div class="aqo-config-item"><span class="aqo-config-label">Own Investment</span><span class="aqo-config-value">{{ formatCurrency(result.variables.own_investment) }}</span></div>
-            </div>
-          </section>
-
-          <section class="aqo-result-section">
-            <h3>Financial Summary</h3>
-            <table class="aqo-table"><tbody>
-              <tr><td>Total Initial Investment</td><td>{{ formatCurrency(result.result.total_initial_investment) }}</td></tr>
-              <tr><td>Yearly Maintenance</td><td>{{ formatCurrency(result.result.yearly_maintenance) }}</td></tr>
-              <tr><td>Total Revenue (full year)</td><td class="positive-val">{{ formatCurrency(result.result.total_revenue) }}</td></tr>
-              <tr><td>Total Production Cost</td><td class="negative-val">{{ formatCurrency(result.result.total_production_cost) }}</td></tr>
-              <tr><td>Total Logistics Cost</td><td class="negative-val">{{ formatCurrency(result.result.total_logistics_cost) }}</td></tr>
-              <tr class="divider"><td>WACC</td><td>{{ (result.result.wacc * 100).toFixed(2) }}%</td></tr>
-              <tr><td>Equity share</td><td>{{ (result.result.equity_share * 100).toFixed(1) }}%</td></tr>
-              <tr><td>Debt share</td><td>{{ (result.result.debt_share * 100).toFixed(1) }}%</td></tr>
-            </tbody></table>
-          </section>
-
-          <section class="aqo-result-section">
-            <h3>Production</h3>
-            <table class="aqo-table"><tbody>
-              <tr><td>Fish sellable quantity</td><td>{{ result.result.fish_sellable_qty.toFixed(2) }} units/yr</td></tr>
-              <tr><td>Plant sellable quantity</td><td>{{ result.result.plant_sellable_qty.toFixed(2) }} units/yr</td></tr>
-              <tr><td>Fish efficiency boost</td><td>{{ (result.result.fish_boost * 100).toFixed(1) }}%</td></tr>
-              <tr><td>Plant efficiency boost</td><td>{{ (result.result.plant_boost * 100).toFixed(1) }}%</td></tr>
-            </tbody></table>
-          </section>
-
-          <section class="aqo-result-section">
-            <h3>10-Year Free Cash Flow</h3>
-            <div class="aqo-cashflow-chart">
-              <div v-for="(cf, i) in result.result.year_cashflows" :key="i" class="aqo-bar-wrap" :title="'Year ' + i + ': ' + formatCurrency(cf)">
-                <div class="aqo-bar-label">Yr {{ i }}</div>
-                <div class="aqo-bar-track"><div class="aqo-bar" :class="cf >= 0 ? 'pos' : 'neg'" :style="barStyle(cf)"></div></div>
-                <div class="aqo-bar-val">{{ formatKCompact(cf) }}</div>
-              </div>
-            </div>
-          </section>
-        </template>
-      </div>
-    </div>
-  </div>
-  `
-}).mount('#app');
-</script>
-
-
-<!-- ════════════════════════════════════════════════════════════
-     CLIMATE AVERAGES WIDGET
-     Variables : temperature at 2 m, precipitation, ET₀ (FAO-56)
-     Exports   : CSV · Excel (.xlsx) · Print / PDF
-     Data      : Open-Meteo ERA5, last 3 complete years
-     ════════════════════════════════════════════════════════════ -->
+<!-- ── Climate Widget ──────────────────────────────────────────── -->
 <div class="clm-wrap">
   <h2>Climate Averages</h2>
-  <p class="clm-sub">Temperature at 2 m · Precipitation · ET₀ evapotranspiration — 3-year monthly historical averages.</p>
+  <p class="clm-sub">Temperature at 2 m &middot; Precipitation &middot; ET&#8320; evapotranspiration &mdash; 3-year monthly historical averages.</p>
 
   <div class="clm-search">
-    <input type="text" id="clmInput" placeholder="Enter a city, e.g. São Paulo…"/>
-    <button class="clm-sbtn" id="clmBtn" onclick="clmGo()">Search</button>
+    <input type="text" id="clmInput" placeholder="Enter a city, e.g. S&#227;o Paulo&#8230;" />
+    <button class="clm-sbtn" id="clmSearchBtn">Search</button>
   </div>
 
   <div id="clmErr"    class="clm-err"    style="display:none;"></div>
@@ -392,28 +174,24 @@ createApp({
   <div id="clmOut" style="display:none;">
 
     <div class="clm-units">
-      <button class="clm-ubtn on" id="clmC" onclick="clmUnit('C')">°C</button>
-      <button class="clm-ubtn"    id="clmF" onclick="clmUnit('F')">°F</button>
+      <button class="clm-ubtn on" id="clmBtnC">&#176;C</button>
+      <button class="clm-ubtn"    id="clmBtnF">&#176;F</button>
     </div>
 
     <p class="clm-city"  id="clmCity"></p>
     <p class="clm-coord" id="clmCoord"></p>
     <p class="clm-range" id="clmRange"></p>
 
-    <!-- Export bar -->
     <div class="clm-export">
       <span class="clm-export-label">Export</span>
-      <button class="clm-ebtn" onclick="clmExportCSV()" title="Download as CSV">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>
-        CSV
+      <button class="clm-ebtn" id="clmBtnCSV" title="Download CSV">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>CSV
       </button>
-      <button class="clm-ebtn" onclick="clmExportXLSX()" title="Download as Excel">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>
-        Excel
+      <button class="clm-ebtn" id="clmBtnXLSX" title="Download Excel">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>Excel
       </button>
-      <button class="clm-ebtn" onclick="clmPrint()" title="Print / save as PDF">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="10" height="7" rx="1"/><path d="M5 5V3h6v2M5 10h6"/></svg>
-        Print / PDF
+      <button class="clm-ebtn" id="clmBtnPrint" title="Print / PDF">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="10" height="7" rx="1"/><path d="M5 5V3h6v2M5 10h6"/></svg>Print / PDF
       </button>
     </div>
 
@@ -423,21 +201,20 @@ createApp({
       <div class="clm-metric"><div class="clm-mlabel">Annual avg temp</div><div class="clm-mval" id="mAvg"></div></div>
       <div class="clm-metric"><div class="clm-mlabel">Wettest month</div> <div class="clm-mval" id="mWet"></div></div>
       <div class="clm-metric"><div class="clm-mlabel">Driest month</div>  <div class="clm-mval" id="mDry"></div></div>
-      <div class="clm-metric"><div class="clm-mlabel">Peak ET₀ month</div><div class="clm-mval" id="mET"></div></div>
+      <div class="clm-metric"><div class="clm-mlabel">Peak ET&#8320; month</div><div class="clm-mval" id="mET"></div></div>
     </div>
 
-    <!-- Data table -->
-    <div class="clm-panel">
+    <div class="clm-panel" id="clmPrintSec">
       <p class="clm-ptitle">Monthly data table</p>
       <div class="clm-tbl-wrap">
         <table class="clm-tbl" id="clmTable">
           <thead><tr>
             <th>Month</th>
-            <th id="thHigh">Avg High (°C)</th>
-            <th id="thMean">Avg Mean (°C)</th>
-            <th id="thLow">Avg Low (°C)</th>
+            <th id="thHigh">Avg High (&#176;C)</th>
+            <th id="thMean">Avg Mean (&#176;C)</th>
+            <th id="thLow">Avg Low (&#176;C)</th>
             <th>Precip (mm)</th>
-            <th>ET₀ (mm)</th>
+            <th>ET&#8320; (mm)</th>
             <th>Water Deficit (mm)</th>
           </tr></thead>
           <tbody id="clmTbody"></tbody>
@@ -464,169 +241,489 @@ createApp({
     </div>
 
     <div class="clm-panel">
-      <p class="clm-ptitle">Monthly ET₀ vs precipitation (mm) — FAO-56 Penman-Monteith</p>
+      <p class="clm-ptitle">Monthly ET&#8320; vs precipitation (mm) &mdash; FAO-56 Penman-Monteith</p>
       <div class="clm-legend">
-        <span class="clm-li"><span class="clm-sw" style="background:#eda100;"></span>ET₀</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#eda100;"></span>ET&#8320;</span>
         <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;opacity:.6;"></span>Precipitation (overlay)</span>
       </div>
       <div class="clm-cwrap" style="height:160px;"><canvas id="cET"></canvas></div>
     </div>
 
-    <p class="clm-credit">Source: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> ERA5 Historical Weather API · CC BY 4.0 · 3-year historical average</p>
+    <p class="clm-credit">Source: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> ERA5 Historical Weather API &middot; CC BY 4.0 &middot; 3-year historical average</p>
   </div>
 </div>
-<script>
-(function(){
-  const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  let D=null, META={}, unit='C';
-  let chT=null, chP=null, chE=null;
 
-  function dateRange(){
-    const now=new Date();
-    const end=new Date(now.getFullYear(),now.getMonth(),0);
-    const start=new Date(end.getFullYear()-3,end.getMonth(),1);
-    const fmt=d=>d.toISOString().slice(0,10);
-    return{start:fmt(start),end:fmt(end),label:fmt(start).slice(0,7)+' → '+fmt(end).slice(0,7)};
+<!-- ── Optimizer JS ─────────────────────────────────────────────── -->
+<script>
+const API_BASE = 'https://aquaponics-optimizer.onrender.com';
+
+const { createApp, reactive, ref } = Vue;
+createApp({
+  setup() {
+    const params = reactive({
+      investment_cap: 100000,
+      cost_of_equity_rate: 0.15,
+      cost_of_debt_rate: 0.10,
+      fish_price: 50,
+      fish_size_kg: 0.5,
+      fish_qty: 12,
+      fish_loss_rate: 0.05,
+      fish_unit_cost: 2,
+      fish_logistics_cost: 2,
+      plant_price: 10,
+      plant_size_kg: 0.3,
+      plant_qty: 10,
+      plant_loss_rate: 0.05,
+      plant_unit_cost: 0.02,
+      plant_logistics_cost: 0.5,
+      max_boost: 0.11,
+    });
+    const result  = ref(null);
+    const running = ref(false);
+    const error   = ref(null);
+
+    async function runOptimizer() {
+      running.value = true;
+      error.value   = null;
+      try {
+        const res = await fetch(`${API_BASE}/optimize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+        });
+        if (!res.ok) { const b = await res.json(); throw new Error(b.detail || res.statusText); }
+        result.value = await res.json();
+      } catch (e) {
+        error.value = e.message + ' (Is the backend URL correct and the server awake? Free Render servers sleep after inactivity and can take ~30s to wake up on the first request.)';
+      } finally {
+        running.value = false;
+      }
+    }
+    function formatCurrency(v) { return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(v); }
+    function formatKCompact(v) { if(Math.abs(v)>=1000) return (v/1000).toFixed(1)+'k'; return v.toFixed(0); }
+    function maxAbs(arr) { return Math.max(...arr.map(Math.abs),1); }
+    function barStyle(cf) {
+      const cashflows = result.value?.result?.year_cashflows ?? [];
+      const scale = maxAbs(cashflows);
+      const pct = Math.min(Math.abs(cf)/scale*100,100);
+      return { width: pct+'%' };
+    }
+    return { params, result, running, error, runOptimizer, formatCurrency, formatKCompact, barStyle };
+  },
+  template: `
+  <div class="aqo-shell">
+    <div class="aqo-header">
+      <div class="aqo-header-text">
+        <h2>Aquaponics NPV Optimizer</h2>
+        <p>Adjust your production parameters, then run the solver to find the optimal system configuration.</p>
+      </div>
+      <button class="aqo-run-btn" @click="runOptimizer" :disabled="running">
+        <span v-if="!running">&#9654; Optimize</span>
+        <span v-else class="aqo-spinner">Solving&#8230;</span>
+      </button>
+    </div>
+    <div v-if="result && result.warnings && result.warnings.length" class="aqo-warnings">
+      <div class="aqo-warning-icon">&#9888;</div>
+      <ul><li v-for="w in result.warnings" :key="w">{{ w }}</li></ul>
+    </div>
+    <div v-if="error" class="aqo-error"><strong>Solver error:</strong> {{ error }}</div>
+    <div class="aqo-body">
+      <div class="aqo-inputs">
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">Investment</h3>
+          <label class="aqo-field"><span>Investment cap ($)</span><input type="number" v-model.number="params.investment_cap" min="0" step="1000" /></label>
+          <label class="aqo-field"><span>Cost of equity rate</span><input type="number" v-model.number="params.cost_of_equity_rate" min="0" max="1" step="0.01" /></label>
+          <label class="aqo-field"><span>Cost of debt rate</span><input type="number" v-model.number="params.cost_of_debt_rate" min="0" max="1" step="0.01" /></label>
+        </section>
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">Fish Production</h3>
+          <label class="aqo-field"><span>Sell price ($/kg)</span><input type="number" v-model.number="params.fish_price" min="0" step="0.5" /></label>
+          <label class="aqo-field"><span>Avg weight (kg)</span><input type="number" v-model.number="params.fish_size_kg" min="0" step="0.05" /></label>
+          <label class="aqo-field"><span>Batches/year</span><input type="number" v-model.number="params.fish_qty" min="0" step="1" /></label>
+          <label class="aqo-field"><span>Loss rate</span><input type="number" v-model.number="params.fish_loss_rate" min="0" max="1" step="0.01" /></label>
+          <label class="aqo-field"><span>Youngling cost ($/unit)</span><input type="number" v-model.number="params.fish_unit_cost" min="0" step="0.1" /></label>
+          <label class="aqo-field"><span>Logistics cost ($/unit)</span><input type="number" v-model.number="params.fish_logistics_cost" min="0" step="0.1" /></label>
+        </section>
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">Plant Production</h3>
+          <label class="aqo-field"><span>Sell price ($/kg)</span><input type="number" v-model.number="params.plant_price" min="0" step="0.5" /></label>
+          <label class="aqo-field"><span>Avg weight (kg)</span><input type="number" v-model.number="params.plant_size_kg" min="0" step="0.05" /></label>
+          <label class="aqo-field"><span>Batches/year</span><input type="number" v-model.number="params.plant_qty" min="0" step="1" /></label>
+          <label class="aqo-field"><span>Loss rate</span><input type="number" v-model.number="params.plant_loss_rate" min="0" max="1" step="0.01" /></label>
+          <label class="aqo-field"><span>Youngling cost ($/unit)</span><input type="number" v-model.number="params.plant_unit_cost" min="0" step="0.01" /></label>
+          <label class="aqo-field"><span>Logistics cost ($/unit)</span><input type="number" v-model.number="params.plant_logistics_cost" min="0" step="0.1" /></label>
+        </section>
+        <section class="aqo-section">
+          <h3 class="aqo-section-title">System</h3>
+          <label class="aqo-field"><span>Max efficiency boost cap</span><input type="number" v-model.number="params.max_boost" min="0" max="1" step="0.01" /></label>
+        </section>
+      </div>
+      <div class="aqo-results">
+        <div v-if="!result" class="aqo-placeholder">
+          <div class="aqo-placeholder-icon">&#9881;</div>
+          <p>Set your parameters and click <strong>Optimize</strong> to find the best configuration.</p>
+        </div>
+        <template v-else>
+          <div class="aqo-npv-card" :class="result.result.npv >= 0 ? 'positive' : 'negative'">
+            <div class="aqo-npv-label">Net Present Value</div>
+            <div class="aqo-npv-value">{{ formatCurrency(result.result.npv) }}</div>
+            <div class="aqo-npv-meta">Converged in {{ result.iterations }} iteration{{ result.iterations === 1 ? '' : 's' }}</div>
+          </div>
+          <section class="aqo-result-section">
+            <h3>Optimal Configuration</h3>
+            <div class="aqo-config-grid">
+              <div class="aqo-config-item"><span class="aqo-config-label">Hydroponic System</span><span class="aqo-config-value highlight">{{ result.variables.hydroponic_system }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Remineralization</span><span class="aqo-config-value" :class="result.variables.remineralization_choice ? 'on' : 'off'">{{ result.variables.remineralization_choice ? 'ON' : 'OFF' }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Anaerobic Digestion</span><span class="aqo-config-value" :class="result.variables.anaerobic_digestion_choice ? 'on' : 'off'">{{ result.variables.anaerobic_digestion_choice ? 'ON' : 'OFF' }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Biofilter Units</span><span class="aqo-config-value">{{ result.variables.biofilter_qty.toFixed(2) }}</span></div>
+              <div class="aqo-config-item"><span class="aqo-config-label">Own Investment</span><span class="aqo-config-value">{{ formatCurrency(result.variables.own_investment) }}</span></div>
+            </div>
+          </section>
+          <section class="aqo-result-section">
+            <h3>Financial Summary</h3>
+            <table class="aqo-table"><tbody>
+              <tr><td>Total Initial Investment</td><td>{{ formatCurrency(result.result.total_initial_investment) }}</td></tr>
+              <tr><td>Yearly Maintenance</td><td>{{ formatCurrency(result.result.yearly_maintenance) }}</td></tr>
+              <tr><td>Total Revenue (full year)</td><td class="positive-val">{{ formatCurrency(result.result.total_revenue) }}</td></tr>
+              <tr><td>Total Production Cost</td><td class="negative-val">{{ formatCurrency(result.result.total_production_cost) }}</td></tr>
+              <tr><td>Total Logistics Cost</td><td class="negative-val">{{ formatCurrency(result.result.total_logistics_cost) }}</td></tr>
+              <tr class="divider"><td>WACC</td><td>{{ (result.result.wacc * 100).toFixed(2) }}%</td></tr>
+              <tr><td>Equity share</td><td>{{ (result.result.equity_share * 100).toFixed(1) }}%</td></tr>
+              <tr><td>Debt share</td><td>{{ (result.result.debt_share * 100).toFixed(1) }}%</td></tr>
+            </tbody></table>
+          </section>
+          <section class="aqo-result-section">
+            <h3>Production</h3>
+            <table class="aqo-table"><tbody>
+              <tr><td>Fish sellable quantity</td><td>{{ result.result.fish_sellable_qty.toFixed(2) }} units/yr</td></tr>
+              <tr><td>Plant sellable quantity</td><td>{{ result.result.plant_sellable_qty.toFixed(2) }} units/yr</td></tr>
+              <tr><td>Fish efficiency boost</td><td>{{ (result.result.fish_boost * 100).toFixed(1) }}%</td></tr>
+              <tr><td>Plant efficiency boost</td><td>{{ (result.result.plant_boost * 100).toFixed(1) }}%</td></tr>
+            </tbody></table>
+          </section>
+          <section class="aqo-result-section">
+            <h3>10-Year Free Cash Flow</h3>
+            <div class="aqo-cashflow-chart">
+              <div v-for="(cf, i) in result.result.year_cashflows" :key="i" class="aqo-bar-wrap" :title="'Year ' + i + ': ' + formatCurrency(cf)">
+                <div class="aqo-bar-label">Yr {{ i }}</div>
+                <div class="aqo-bar-track"><div class="aqo-bar" :class="cf >= 0 ? 'pos' : 'neg'" :style="barStyle(cf)"></div></div>
+                <div class="aqo-bar-val">{{ formatKCompact(cf) }}</div>
+              </div>
+            </div>
+          </section>
+        </template>
+      </div>
+    </div>
+  </div>`
+}).mount('#app');
+</script>
+
+<!-- ── Climate Widget JS ─────────────────────────────────────────
+     All event listeners are wired in DOMContentLoaded so they
+     run AFTER Vue has mounted and all elements exist in the DOM.
+     No onclick="" attributes — avoids any scope clash with Vue.
+─────────────────────────────────────────────────────────────── -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ── state ── */
+  const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let D    = null;
+  let META = {};
+  let unit = 'C';
+  let chT  = null, chP = null, chE = null;
+
+  /* ── wire up all buttons ── */
+  document.getElementById('clmSearchBtn').addEventListener('click', clmGo);
+  document.getElementById('clmInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') clmGo(); });
+  document.getElementById('clmBtnC').addEventListener('click', function() { setUnit('C'); });
+  document.getElementById('clmBtnF').addEventListener('click', function() { setUnit('F'); });
+  document.getElementById('clmBtnCSV').addEventListener('click',  exportCSV);
+  document.getElementById('clmBtnXLSX').addEventListener('click', exportXLSX);
+  document.getElementById('clmBtnPrint').addEventListener('click', function() { if (D) window.print(); });
+
+  /* ── date range: last 3 complete years ── */
+  function dateRange() {
+    var now   = new Date();
+    var end   = new Date(now.getFullYear(), now.getMonth(), 0);
+    var start = new Date(end.getFullYear() - 3, end.getMonth(), 1);
+    function fmt(d) { return d.toISOString().slice(0, 10); }
+    return { start: fmt(start), end: fmt(end),
+             label: fmt(start).slice(0,7) + ' \u2192 ' + fmt(end).slice(0,7) };
   }
-  async function geocode(q){
-    const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=1&language=en&format=json');
-    if(!r.ok)throw new Error('Geocoding failed ('+r.status+')');
-    const j=await r.json();
-    return(j.results&&j.results.length)?j.results[0]:null;
+
+  /* ── API helpers ── */
+  async function geocode(q) {
+    var r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='
+      + encodeURIComponent(q) + '&count=1&language=en&format=json');
+    if (!r.ok) throw new Error('Geocoding failed (' + r.status + ')');
+    var j = await r.json();
+    return (j.results && j.results.length) ? j.results[0] : null;
   }
-  async function fetchArchive(lat,lon,start,end){
-    const vars='temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration';
-    const url='https://archive-api.open-meteo.com/v1/archive?latitude='+lat+'&longitude='+lon+'&start_date='+start+'&end_date='+end+'&daily='+vars+'&timezone=auto';
-    const r=await fetch(url);
-    if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('Archive API ('+r.status+'): '+t.slice(0,120));}
+
+  async function fetchArchive(lat, lon, start, end) {
+    var vars = 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration';
+    var url  = 'https://archive-api.open-meteo.com/v1/archive'
+      + '?latitude='   + lat
+      + '&longitude='  + lon
+      + '&start_date=' + start
+      + '&end_date='   + end
+      + '&daily='      + vars
+      + '&timezone=auto';
+    var r = await fetch(url);
+    if (!r.ok) {
+      var t = await r.text().catch(function() { return ''; });
+      throw new Error('Archive API (' + r.status + '): ' + t.slice(0, 120));
+    }
     return r.json();
   }
-  function aggregate(daily){
-    const b=Array.from({length:12},()=>({hi:[],lo:[],pr:[],et:[]}));
-    for(let i=0;i<daily.time.length;i++){
-      const m=new Date(daily.time[i]).getMonth();
-      const p=(arr,v)=>{if(v!==null&&v!==undefined)arr.push(v);};
-      p(b[m].hi,daily.temperature_2m_max[i]);p(b[m].lo,daily.temperature_2m_min[i]);
-      p(b[m].pr,daily.precipitation_sum[i]);p(b[m].et,daily.et0_fao_evapotranspiration[i]);
+
+  /* ── aggregate daily → monthly ── */
+  function aggregate(daily) {
+    var b = [];
+    for (var i = 0; i < 12; i++) b.push({ hi:[], lo:[], pr:[], et:[] });
+    for (var i = 0; i < daily.time.length; i++) {
+      var m = new Date(daily.time[i]).getMonth();
+      function push(arr, v) { if (v !== null && v !== undefined) arr.push(v); }
+      push(b[m].hi, daily.temperature_2m_max[i]);
+      push(b[m].lo, daily.temperature_2m_min[i]);
+      push(b[m].pr, daily.precipitation_sum[i]);
+      push(b[m].et, daily.et0_fao_evapotranspiration[i]);
     }
-    const a=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:0;
-    return b.map(x=>({avgHigh:a(x.hi),avgLow:a(x.lo),avgMean:(a(x.hi)+a(x.lo))/2,precip:a(x.pr)*30,et:a(x.et)*30}));
+    function avg(a) { return a.length ? a.reduce(function(s,v){return s+v;},0)/a.length : 0; }
+    return b.map(function(x) {
+      return {
+        avgHigh: avg(x.hi),
+        avgLow:  avg(x.lo),
+        avgMean: (avg(x.hi) + avg(x.lo)) / 2,
+        precip:  avg(x.pr) * 30,
+        et:      avg(x.et) * 30
+      };
+    });
   }
-  const toF=c=>c*9/5+32, conv=c=>unit==='C'?c:toF(c), r2=n=>Math.round(n*10)/10;
-  const fmtT=c=>r2(conv(c))+'°'+unit;
 
-  window.clmGo=async function(){
-    const q=document.getElementById('clmInput').value.trim();
-    if(!q)return;
-    clmSt('<span class="clm-spin">Looking up '+clmE(q)+'…</span>');
-    clmH('clmOut');clmH('clmErr');
-    document.getElementById('clmBtn').disabled=true;
-    try{
-      const loc=await geocode(q);
-      if(!loc){clmEr('City not found. Try adding the country, e.g. "Toledo, Spain".');return;}
-      const{latitude:lat,longitude:lon,name,country,admin1}=loc;
-      const{start,end,label}=dateRange();
-      clmSt('<span class="clm-spin">Fetching 3 years of historical data…</span>');
-      const json=await fetchArchive(lat,lon,start,end);
-      if(!json.daily||!json.daily.time||!json.daily.time.length){clmEr('No data. Try a nearby larger city.');return;}
-      D=aggregate(json.daily);
-      META={city:name,coord:[admin1,country].filter(Boolean).join(', ')+' · '+lat.toFixed(3)+'°, '+lon.toFixed(3)+'°',range:'Data range: '+label,filename:name.replace(/[^a-z0-9]/gi,'_')};
-      document.getElementById('clmCity').textContent=META.city;
-      document.getElementById('clmCoord').textContent=META.coord;
-      document.getElementById('clmRange').textContent=META.range;
-      render();clmHS();document.getElementById('clmOut').style.display='block';
-    }catch(e){clmEr('Error: '+e.message);}
-    finally{document.getElementById('clmBtn').disabled=false;}
-  };
+  /* ── unit helpers ── */
+  function toF(c)  { return c * 9 / 5 + 32; }
+  function conv(c) { return unit === 'C' ? c : toF(c); }
+  function r1(n)   { return Math.round(n * 10) / 10; }
+  function fmtT(c) { return r1(conv(c)) + '\u00b0' + unit; }
 
-  function render(){
-    const d=D;
-    const iMax=fn=>d.reduce((mi,v,i,a)=>fn(v)>fn(a[mi])?i:mi,0);
-    const iMin=fn=>d.reduce((mi,v,i,a)=>fn(v)<fn(a[mi])?i:mi,0);
-    const hotI=iMax(v=>v.avgHigh),coldI=iMin(v=>v.avgLow),wetI=iMax(v=>v.precip),dryI=iMin(v=>v.precip),etI=iMax(v=>v.et);
-    const annT=d.reduce((s,v)=>s+v.avgMean,0)/12;
-    const st=(id,t)=>document.getElementById(id).textContent=t;
-    st('mHot',MO[hotI]+' '+fmtT(d[hotI].avgHigh));st('mCold',MO[coldI]+' '+fmtT(d[coldI].avgLow));
-    st('mAvg',fmtT(annT));st('mWet',MO[wetI]+' '+Math.round(d[wetI].precip)+' mm');
-    st('mDry',MO[dryI]+' '+Math.round(d[dryI].precip)+' mm');st('mET',MO[etI]+' '+Math.round(d[etI].et)+' mm');
+  /* ── main search ── */
+  async function clmGo() {
+    var q = document.getElementById('clmInput').value.trim();
+    if (!q) return;
+    setStatus('<span class="clm-spin">Looking up ' + esc(q) + '\u2026</span>');
+    hide('clmOut'); hide('clmErr');
+    document.getElementById('clmSearchBtn').disabled = true;
+    try {
+      var loc = await geocode(q);
+      if (!loc) { showErr('City not found. Try adding the country, e.g. "Toledo, Spain".'); return; }
+      var lat = loc.latitude, lon = loc.longitude;
+      var name = loc.name, country = loc.country, admin1 = loc.admin1;
+      var dr = dateRange();
+      setStatus('<span class="clm-spin">Fetching 3 years of historical data\u2026</span>');
+      var json = await fetchArchive(lat, lon, dr.start, dr.end);
+      if (!json.daily || !json.daily.time || !json.daily.time.length) {
+        showErr('No data returned. Try a nearby larger city.'); return;
+      }
+      D    = aggregate(json.daily);
+      META = {
+        city:     name,
+        coord:    [admin1, country].filter(Boolean).join(', ') + ' \u00b7 ' + lat.toFixed(3) + '\u00b0, ' + lon.toFixed(3) + '\u00b0',
+        range:    'Data range: ' + dr.label,
+        filename: name.replace(/[^a-z0-9]/gi, '_')
+      };
+      document.getElementById('clmCity').textContent  = META.city;
+      document.getElementById('clmCoord').textContent = META.coord;
+      document.getElementById('clmRange').textContent = META.range;
+      render();
+      hideStatus();
+      document.getElementById('clmOut').style.display = 'block';
+    } catch(e) {
+      showErr('Error: ' + e.message);
+    } finally {
+      document.getElementById('clmSearchBtn').disabled = false;
+    }
+  }
 
-    const u='°'+unit;
-    document.getElementById('thHigh').textContent='Avg High ('+u+')';
-    document.getElementById('thMean').textContent='Avg Mean ('+u+')';
-    document.getElementById('thLow').textContent='Avg Low ('+u+')';
+  /* ── render ── */
+  function render() {
+    var d = D;
+    function iMax(fn) { return d.reduce(function(mi,v,i,a){ return fn(v)>fn(a[mi])?i:mi; }, 0); }
+    function iMin(fn) { return d.reduce(function(mi,v,i,a){ return fn(v)<fn(a[mi])?i:mi; }, 0); }
+    var hotI  = iMax(function(v){ return v.avgHigh; });
+    var coldI = iMin(function(v){ return v.avgLow;  });
+    var wetI  = iMax(function(v){ return v.precip;  });
+    var dryI  = iMin(function(v){ return v.precip;  });
+    var etI   = iMax(function(v){ return v.et;      });
+    var annT  = d.reduce(function(s,v){ return s+v.avgMean; }, 0) / 12;
 
-    const tbody=document.getElementById('clmTbody');tbody.innerHTML='';
-    let totPr=0,totET=0;
-    d.forEach((v,i)=>{
-      const def=r2(v.et-v.precip);totPr+=v.precip;totET+=v.et;
-      const tr=document.createElement('tr');
-      tr.innerHTML='<td>'+MO[i]+'</td><td>'+r2(conv(v.avgHigh))+'</td><td>'+r2(conv(v.avgMean))+'</td><td>'+r2(conv(v.avgLow))+'</td><td>'+Math.round(v.precip)+'</td><td>'+Math.round(v.et)+'</td><td style="color:'+(def>0?'#B91C1C':'#1E6B3A')+'">'+(def>0?'+':'')+def+'</td>';
+    function st(id, t) { document.getElementById(id).textContent = t; }
+    st('mHot',  MO[hotI]  + ' ' + fmtT(d[hotI].avgHigh));
+    st('mCold', MO[coldI] + ' ' + fmtT(d[coldI].avgLow));
+    st('mAvg',  fmtT(annT));
+    st('mWet',  MO[wetI]  + ' ' + Math.round(d[wetI].precip) + ' mm');
+    st('mDry',  MO[dryI]  + ' ' + Math.round(d[dryI].precip) + ' mm');
+    st('mET',   MO[etI]   + ' ' + Math.round(d[etI].et)      + ' mm');
+
+    var u = '\u00b0' + unit;
+    document.getElementById('thHigh').textContent = 'Avg High (' + u + ')';
+    document.getElementById('thMean').textContent = 'Avg Mean (' + u + ')';
+    document.getElementById('thLow').textContent  = 'Avg Low ('  + u + ')';
+
+    /* table */
+    var tbody = document.getElementById('clmTbody');
+    tbody.innerHTML = '';
+    var totPr = 0, totET = 0;
+    d.forEach(function(v, i) {
+      var def = r1(v.et - v.precip);
+      totPr += v.precip; totET += v.et;
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + MO[i] + '</td>' +
+        '<td>' + r1(conv(v.avgHigh)) + '</td>' +
+        '<td>' + r1(conv(v.avgMean)) + '</td>' +
+        '<td>' + r1(conv(v.avgLow))  + '</td>' +
+        '<td>' + Math.round(v.precip) + '</td>' +
+        '<td>' + Math.round(v.et)     + '</td>' +
+        '<td style="color:' + (def > 0 ? '#B91C1C' : '#1E6B3A') + '">' + (def > 0 ? '+' : '') + def + '</td>';
       tbody.appendChild(tr);
     });
-    const td=r2(totET-totPr),annRow=document.createElement('tr');
-    annRow.innerHTML='<td>Annual</td><td>—</td><td>'+r2(conv(annT))+'</td><td>—</td><td>'+Math.round(totPr)+'</td><td>'+Math.round(totET)+'</td><td style="color:'+(td>0?'#B91C1C':'#1E6B3A')+'">'+(td>0?'+':'')+td+'</td>';
-    tbody.appendChild(annRow);
+    var td  = r1(totET - totPr);
+    var ann = document.createElement('tr');
+    ann.innerHTML =
+      '<td>Annual</td><td>\u2014</td><td>' + r1(conv(annT)) + '</td><td>\u2014</td>' +
+      '<td>' + Math.round(totPr) + '</td><td>' + Math.round(totET) + '</td>' +
+      '<td style="color:' + (td > 0 ? '#B91C1C' : '#1E6B3A') + '">' + (td > 0 ? '+' : '') + td + '</td>';
+    tbody.appendChild(ann);
 
-    const hi=d.map(v=>r2(conv(v.avgHigh))),lo=d.map(v=>r2(conv(v.avgLow))),me=d.map(v=>r2(conv(v.avgMean)));
-    const pr=d.map(v=>Math.round(v.precip)),et=d.map(v=>Math.round(v.et));
-    const gc='rgba(0,0,0,0.06)',tk={color:'#6B7280',font:{size:11}};
-    if(chT)chT.destroy();if(chP)chP.destroy();if(chE)chE.destroy();
-    chT=new Chart(document.getElementById('cTemp'),{type:'line',data:{labels:MO,datasets:[{label:'Avg high',data:hi,borderColor:'#2a78d6',backgroundColor:'rgba(42,120,214,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#2a78d6',tension:0.4,fill:false},{label:'Avg mean',data:me,borderColor:'#9085e9',backgroundColor:'rgba(144,133,233,0.05)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#9085e9',tension:0.4,fill:false,borderDash:[5,3]},{label:'Avg low',data:lo,borderColor:'#1baf7a',backgroundColor:'rgba(27,175,122,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#1baf7a',tension:0.4,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+'°'+unit}}},scales:{x:{grid:{color:gc},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+'°'+unit}}}}});
-    chP=new Chart(document.getElementById('cPrecip'),{type:'bar',data:{labels:MO,datasets:[{label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.7)',borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' mm'}}},scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
-    chE=new Chart(document.getElementById('cET'),{type:'bar',data:{labels:MO,datasets:[{label:'ET₀',data:et,backgroundColor:'rgba(237,161,0,0.78)',borderRadius:4,borderSkipped:false,order:2},{label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.42)',borderRadius:4,borderSkipped:false,order:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+' mm'}}},scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
-  }
+    /* charts */
+    var hi = d.map(function(v){ return r1(conv(v.avgHigh)); });
+    var lo = d.map(function(v){ return r1(conv(v.avgLow));  });
+    var me = d.map(function(v){ return r1(conv(v.avgMean)); });
+    var pr = d.map(function(v){ return Math.round(v.precip); });
+    var et = d.map(function(v){ return Math.round(v.et);    });
+    var gc = 'rgba(0,0,0,0.06)', tk = { color:'#6B7280', font:{ size:11 } };
 
-  window.clmUnit=function(u){
-    unit=u;
-    document.getElementById('clmC').classList.toggle('on',u==='C');
-    document.getElementById('clmF').classList.toggle('on',u==='F');
-    if(D)render();
-  };
+    if (chT) chT.destroy();
+    if (chP) chP.destroy();
+    if (chE) chE.destroy();
 
-  function buildRows(){
-    const u='°'+unit;
-    const headers=['Month','Avg High ('+u+')','Avg Mean ('+u+')','Avg Low ('+u+')','Precipitation (mm)','ET₀ (mm)','Water Deficit (mm)'];
-    let totPr=0,totET=0,annT=0;
-    const rows=D.map((v,i)=>{
-      const def=r2(v.et-v.precip);totPr+=v.precip;totET+=v.et;annT+=v.avgMean;
-      return[MO[i],r2(conv(v.avgHigh)),r2(conv(v.avgMean)),r2(conv(v.avgLow)),Math.round(v.precip),Math.round(v.et),def];
+    chT = new Chart(document.getElementById('cTemp'), {
+      type: 'line',
+      data: { labels: MO, datasets: [
+        { label:'Avg high', data:hi, borderColor:'#2a78d6', backgroundColor:'rgba(42,120,214,0.07)',  borderWidth:2, pointRadius:3, pointBackgroundColor:'#2a78d6', tension:0.4, fill:false },
+        { label:'Avg mean', data:me, borderColor:'#9085e9', backgroundColor:'rgba(144,133,233,0.05)', borderWidth:2, pointRadius:3, pointBackgroundColor:'#9085e9', tension:0.4, fill:false, borderDash:[5,3] },
+        { label:'Avg low',  data:lo, borderColor:'#1baf7a', backgroundColor:'rgba(27,175,122,0.07)',  borderWidth:2, pointRadius:3, pointBackgroundColor:'#1baf7a', tension:0.4, fill:false }
+      ]},
+      options: { responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: function(ctx){ return ctx.dataset.label+': '+ctx.parsed.y+'\u00b0'+unit; } } } },
+        scales:{ x:{grid:{color:gc},ticks:tk}, y:{grid:{color:gc},ticks:Object.assign({},tk,{callback:function(v){return v+'\u00b0'+unit;}})} }
+      }
     });
-    rows.push(['Annual','—',r2(conv(annT/12)),'—',Math.round(totPr),Math.round(totET),r2(totET-totPr)]);
-    return{headers,rows};
-  }
-  function clmDL(content,filename,mime){
-    const blob=new Blob([content],{type:mime+';charset=utf-8;'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=filename;a.style.display='none';
-    document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},500);
-  }
-  window.clmExportCSV=function(){
-    if(!D)return;
-    const{headers,rows}=buildRows();
-    const meta=[['Location',META.city],['Coordinates',META.coord],[META.range],['Source','Open-Meteo ERA5 Historical Weather API'],[]];
-    const esc=v=>{const s=String(v);return s.includes(',')? '"'+s.replace(/"/g,'""')+'"':s;};
-    clmDL([...meta.map(r=>r.map(esc).join(',')),headers.map(esc).join(','),...rows.map(r=>r.map(esc).join(','))].join('
-'),META.filename+'_climate.csv','text/csv');
-  };
-  window.clmExportXLSX=function(){
-    if(!D||typeof XLSX==='undefined'){alert('Excel library not loaded.');return;}
-    const{headers,rows}=buildRows();
-    const ws_data=[['Location',META.city],['Coordinates',META.coord],[META.range],['Source','Open-Meteo ERA5 Historical Weather API'],[],headers,...rows];
-    const ws=XLSX.utils.aoa_to_sheet(ws_data);
-    ws['!cols']=[14,16,16,14,20,12,22].map(w=>({wch:w}));
-    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,META.city.slice(0,31));
-    XLSX.writeFile(wb,META.filename+'_climate.xlsx');
-  };
-  window.clmPrint=function(){if(D)window.print();};
 
-  document.getElementById('clmInput').addEventListener('keydown',e=>{if(e.key==='Enter')clmGo();});
-  function clmSt(h){const el=document.getElementById('clmStatus');el.innerHTML=h;el.style.display='block';}
-  function clmHS(){document.getElementById('clmStatus').style.display='none';}
-  function clmH(id){document.getElementById(id).style.display='none';}
-  function clmEr(m){const el=document.getElementById('clmErr');el.textContent=m;el.style.display='block';clmHS();}
-  function clmE(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-})();
+    chP = new Chart(document.getElementById('cPrecip'), {
+      type: 'bar',
+      data: { labels:MO, datasets:[{ label:'Precipitation', data:pr, backgroundColor:'rgba(42,120,214,0.7)', borderRadius:4, borderSkipped:false }] },
+      options: { responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: function(ctx){ return ctx.parsed.y+' mm'; } } } },
+        scales:{ x:{grid:{display:false},ticks:tk}, y:{grid:{color:gc},ticks:Object.assign({},tk,{callback:function(v){return v+' mm';}}),beginAtZero:true} }
+      }
+    });
+
+    chE = new Chart(document.getElementById('cET'), {
+      type: 'bar',
+      data: { labels:MO, datasets:[
+        { label:'ET\u2080', data:et, backgroundColor:'rgba(237,161,0,0.78)', borderRadius:4, borderSkipped:false, order:2 },
+        { label:'Precipitation', data:pr, backgroundColor:'rgba(42,120,214,0.42)', borderRadius:4, borderSkipped:false, order:1 }
+      ]},
+      options: { responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: function(ctx){ return ctx.dataset.label+': '+ctx.parsed.y+' mm'; } } } },
+        scales:{ x:{grid:{display:false},ticks:tk}, y:{grid:{color:gc},ticks:Object.assign({},tk,{callback:function(v){return v+' mm';}}),beginAtZero:true} }
+      }
+    });
+  }
+
+  /* ── unit toggle ── */
+  function setUnit(u) {
+    unit = u;
+    document.getElementById('clmBtnC').classList.toggle('on', u === 'C');
+    document.getElementById('clmBtnF').classList.toggle('on', u === 'F');
+    if (D) render();
+  }
+
+  /* ── build export rows ── */
+  function buildRows() {
+    var u = '\u00b0' + unit;
+    var headers = ['Month','Avg High ('+u+')','Avg Mean ('+u+')','Avg Low ('+u+')','Precipitation (mm)','ET\u2080 (mm)','Water Deficit (mm)'];
+    var totPr = 0, totET = 0, annT = 0;
+    var rows = D.map(function(v, i) {
+      var def = r1(v.et - v.precip);
+      totPr += v.precip; totET += v.et; annT += v.avgMean;
+      return [MO[i], r1(conv(v.avgHigh)), r1(conv(v.avgMean)), r1(conv(v.avgLow)), Math.round(v.precip), Math.round(v.et), def];
+    });
+    rows.push(['Annual', '\u2014', r1(conv(annT/12)), '\u2014', Math.round(totPr), Math.round(totET), r1(totET-totPr)]);
+    return { headers: headers, rows: rows };
+  }
+
+  /* ── CSV export ── */
+  function exportCSV() {
+    if (!D) return;
+    var d = buildRows();
+    var meta = [
+      ['Location', META.city],
+      ['Coordinates', META.coord],
+      [META.range],
+      ['Source', 'Open-Meteo ERA5 Historical Weather API'],
+      []
+    ];
+    function esc2(v) { var s=String(v); return s.indexOf(',')>-1 ? '"'+s.replace(/"/g,'""')+'"' : s; }
+    var lines = meta.map(function(r){ return r.map(esc2).join(','); });
+    lines.push(d.headers.map(esc2).join(','));
+    d.rows.forEach(function(r){ lines.push(r.map(esc2).join(',')); });
+    download(lines.join('\r\n'), META.filename + '_climate.csv', 'text/csv');
+  }
+
+  /* ── Excel export ── */
+  function exportXLSX() {
+    if (!D) return;
+    if (typeof XLSX === 'undefined') { alert('Excel library not loaded yet — please wait a moment and try again.'); return; }
+    var d = buildRows();
+    var ws_data = [
+      ['Location', META.city],
+      ['Coordinates', META.coord],
+      [META.range],
+      ['Source', 'Open-Meteo ERA5 Historical Weather API'],
+      [],
+      d.headers
+    ].concat(d.rows);
+    var ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [14,16,16,14,20,12,22].map(function(w){ return { wch: w }; });
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, META.city.slice(0, 31));
+    XLSX.writeFile(wb, META.filename + '_climate.xlsx');
+  }
+
+  /* ── download helper ── */
+  function download(content, filename, mime) {
+    var blob = new Blob([content], { type: mime + ';charset=utf-8;' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = filename; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); }, 500);
+  }
+
+  /* ── DOM helpers ── */
+  function setStatus(h) { var el=document.getElementById('clmStatus'); el.innerHTML=h; el.style.display='block'; }
+  function hideStatus()  { document.getElementById('clmStatus').style.display='none'; }
+  function show(id)      { document.getElementById(id).style.display='block'; }
+  function hide(id)      { document.getElementById(id).style.display='none'; }
+  function showErr(m)    { var el=document.getElementById('clmErr'); el.textContent=m; el.style.display='block'; hideStatus(); }
+  function esc(s)        { return s.replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+}); // end DOMContentLoaded
 </script>
 
 </body>

@@ -2,99 +2,126 @@
 <!--
   CLIMATE AVERAGES WIDGET — standalone
   =====================================
-  Variables: temperature at 2m (high/low/mean), precipitation, evapotranspiration (ET₀)
-  Data: Open-Meteo archive API — last 3 complete years, averaged month by month.
+  Variables : temperature at 2 m (high/low/mean), precipitation, ET₀ (FAO-56)
+  Data      : Open-Meteo ERA5 archive · last 3 complete years · monthly averages
+  Exports   : CSV · Excel (.xlsx) · Print table
   No API key required.
 
-  Embed on any page:
-    <iframe src="/climate-widget.html" width="100%" height="760"
+  Embed anywhere:
+    <iframe src="/climate-widget.html" width="100%" height="820"
             style="border:none; border-radius:12px;"></iframe>
 -->
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Climate Averages</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- SheetJS for native .xlsx export (no server needed) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-* { box-sizing: border-box; }
-body { margin: 0; padding: 1.5rem; background: #F9FAFB; font-family: 'Inter', system-ui, sans-serif; color: #111827; }
+*{box-sizing:border-box;}
+body{margin:0;padding:1.5rem;background:#F9FAFB;font-family:'Inter',system-ui,sans-serif;color:#111827;}
 
-.clm-shell {
-  --blue:   #1A4A7A;
-  --border: #D1D5DB;
-  --muted:  #6B7280;
-  --card:   #FFFFFF;
-  --bg:     #F9FAFB;
-  --radius: 8px;
-  --red:    #B91C1C;
-  max-width: 1100px;
-  margin: 0 auto;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.5rem;
+.clm-shell{
+  --blue:#1A4A7A; --border:#D1D5DB; --muted:#6B7280;
+  --card:#fff;    --bg:#F9FAFB;     --radius:8px; --red:#B91C1C;
+  max-width:1100px;margin:0 auto;background:var(--bg);
+  border:1px solid var(--border);border-radius:12px;padding:1.5rem;
 }
 
 /* header */
-.clm-header { margin-bottom: 1.25rem; }
-.clm-header h2 { margin: 0 0 .2rem; font-size: 1.1rem; font-weight: 700; color: var(--blue); }
-.clm-header p  { margin: 0; font-size: .8rem; color: var(--muted); }
+.clm-header{margin-bottom:1.25rem;}
+.clm-header h2{margin:0 0 .2rem;font-size:1.1rem;font-weight:700;color:var(--blue);}
+.clm-header p {margin:0;font-size:.8rem;color:var(--muted);}
 
-/* search */
-.clm-search { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
-.clm-search input {
-  flex: 1; min-width: 180px; padding: .5rem .75rem;
-  border: 1px solid var(--border); border-radius: var(--radius);
-  font-size: .875rem; background: var(--card); color: #111827; font-family: inherit;
+/* search row */
+.clm-search{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;}
+.clm-search input{
+  flex:1;min-width:180px;padding:.5rem .75rem;
+  border:1px solid var(--border);border-radius:var(--radius);
+  font-size:.875rem;background:var(--card);color:#111827;font-family:inherit;
 }
-.clm-search input:focus { outline: 2px solid var(--blue); border-color: transparent; }
-.clm-btn {
-  padding: .5rem 1.25rem; background: var(--blue); color: #fff;
-  border: none; border-radius: var(--radius); font-size: .875rem;
-  font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit;
-  transition: background .15s;
+.clm-search input:focus{outline:2px solid var(--blue);border-color:transparent;}
+
+/* buttons (shared) */
+.clm-btn{
+  padding:.5rem 1.25rem;background:var(--blue);color:#fff;
+  border:none;border-radius:var(--radius);font-size:.875rem;
+  font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;
+  transition:background .15s;
 }
-.clm-btn:hover:not(:disabled) { background: #12325a; }
-.clm-btn:disabled { opacity: .55; cursor: not-allowed; }
+.clm-btn:hover:not(:disabled){background:#12325a;}
+.clm-btn:disabled{opacity:.55;cursor:not-allowed;}
+
+/* export bar */
+.clm-export{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem;}
+.clm-export-label{font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.clm-ebtn{
+  padding:.35rem 1rem;background:transparent;color:var(--blue);
+  border:1.5px solid var(--blue);border-radius:var(--radius);
+  font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;
+  transition:background .15s,color .15s;display:flex;align-items:center;gap:5px;
+}
+.clm-ebtn:hover{background:var(--blue);color:#fff;}
+.clm-ebtn svg{width:14px;height:14px;flex-shrink:0;}
 
 /* unit toggle */
-.clm-units { display: flex; gap: 6px; margin-bottom: 1rem; }
-.clm-ubtn {
-  padding: 3px 14px; border-radius: var(--radius);
-  border: 1px solid var(--border); background: transparent;
-  color: var(--muted); font-size: .8rem; cursor: pointer;
-  font-family: inherit; transition: all .15s;
+.clm-units{display:flex;gap:6px;margin-bottom:1rem;}
+.clm-ubtn{
+  padding:3px 14px;border-radius:var(--radius);border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.8rem;cursor:pointer;
+  font-family:inherit;transition:all .15s;
 }
-.clm-ubtn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+.clm-ubtn.on{background:var(--blue);color:#fff;border-color:var(--blue);}
 
-/* city label */
-.clm-city  { font-size: 1rem; font-weight: 700; margin: 0 0 2px; }
-.clm-coord { font-size: .75rem; color: var(--muted); margin: 0 0 1rem; }
-.clm-range { font-size: .72rem; color: var(--muted); margin: -.7rem 0 1rem; font-style: italic; }
+/* labels */
+.clm-city {font-size:1rem;font-weight:700;margin:0 0 2px;}
+.clm-coord{font-size:.75rem;color:var(--muted);margin:0 0 .25rem;}
+.clm-range{font-size:.72rem;color:var(--muted);margin:0 0 1rem;font-style:italic;}
 
 /* metric cards */
-.clm-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
-.clm-metric  { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; }
-.clm-mlabel  { font-size: .68rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
-.clm-mval    { font-size: 1.05rem; font-weight: 700; }
+.clm-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.25rem;}
+.clm-metric {background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;}
+.clm-mlabel {font-size:.68rem;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;}
+.clm-mval   {font-size:1.05rem;font-weight:700;}
 
 /* chart panels */
-.clm-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: 1rem; }
-.clm-ptitle { font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--blue); margin: 0 0 .6rem; }
-.clm-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-.clm-li     { display: flex; align-items: center; gap: 5px; font-size: .73rem; color: var(--muted); }
-.clm-sw     { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-.clm-cwrap  { position: relative; width: 100%; }
+.clm-panel {background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;}
+.clm-ptitle{font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--blue);margin:0 0 .6rem;}
+.clm-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
+.clm-li    {display:flex;align-items:center;gap:5px;font-size:.73rem;color:var(--muted);}
+.clm-sw    {width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.clm-cwrap {position:relative;width:100%;}
+
+/* data table (shown inside a panel) */
+.clm-tbl-wrap{overflow-x:auto;margin-top:.5rem;}
+.clm-tbl{width:100%;border-collapse:collapse;font-size:.78rem;}
+.clm-tbl th{background:var(--bg);color:var(--blue);font-weight:700;text-align:right;padding:.4rem .6rem;border-bottom:2px solid var(--border);white-space:nowrap;}
+.clm-tbl th:first-child{text-align:left;}
+.clm-tbl td{padding:.35rem .6rem;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap;}
+.clm-tbl td:first-child{text-align:left;font-weight:600;color:var(--blue);}
+.clm-tbl tr:last-child td{border-bottom:none;font-weight:700;background:var(--bg);}
 
 /* states */
-.clm-status { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: .875rem; }
-.clm-err    { background: #FEE2E2; border: 1px solid var(--red); border-radius: var(--radius); padding: .75rem 1rem; margin-bottom: 1rem; font-size: .82rem; color: var(--red); }
-.clm-spin   { display: inline-block; animation: spin 1s ease-in-out infinite; }
-@keyframes spin { 0%,100%{opacity:1} 50%{opacity:.3} }
+.clm-status{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.875rem;}
+.clm-err   {background:#FEE2E2;border:1px solid var(--red);border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1rem;font-size:.82rem;color:var(--red);}
+.clm-spin  {display:inline-block;animation:sp 1s ease-in-out infinite;}
+@keyframes sp{0%,100%{opacity:1}50%{opacity:.3}}
 
-.clm-credit { font-size: .68rem; color: var(--muted); text-align: right; margin-top: .5rem; }
-.clm-credit a { color: var(--muted); }
+.clm-credit{font-size:.68rem;color:var(--muted);text-align:right;margin-top:.5rem;}
+.clm-credit a{color:var(--muted);}
+
+/* print styles */
+@media print{
+  body{padding:0;background:#fff;}
+  .clm-shell{border:none;padding:0;max-width:100%;}
+  .clm-search,.clm-units,.clm-export,.clm-panel,.clm-metrics,.clm-header p,
+  .clm-credit,.clm-status{display:none!important;}
+  #clmPrintSec{display:block!important;}
+  .clm-header h2,.clm-city,.clm-coord,.clm-range{display:block!important;}
+  .clm-tbl th,.clm-tbl td{border:1px solid #ccc!important;}
+}
 </style>
 </head>
 <body>
@@ -102,11 +129,11 @@ body { margin: 0; padding: 1.5rem; background: #F9FAFB; font-family: 'Inter', sy
 
   <div class="clm-header">
     <h2>Climate Averages</h2>
-    <p>Temperature at 2 m, precipitation and evapotranspiration — monthly averages over the last 3 years.</p>
+    <p>Temperature at 2 m · Precipitation · ET₀ evapotranspiration — 3-year monthly historical averages.</p>
   </div>
 
   <div class="clm-search">
-    <input type="text" id="clmInput" placeholder="Enter a city, e.g. São Paulo…" />
+    <input type="text" id="clmInput" placeholder="Enter a city, e.g. São Paulo…"/>
     <button class="clm-btn" id="clmBtn" onclick="clmGo()">Search</button>
   </div>
 
@@ -124,6 +151,23 @@ body { margin: 0; padding: 1.5rem; background: #F9FAFB; font-family: 'Inter', sy
     <p class="clm-coord" id="clmCoord"></p>
     <p class="clm-range" id="clmRange"></p>
 
+    <!-- Export bar -->
+    <div class="clm-export">
+      <span class="clm-export-label">Export</span>
+      <button class="clm-ebtn" onclick="exportCSV()" title="Download as CSV">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>
+        CSV
+      </button>
+      <button class="clm-ebtn" onclick="exportXLSX()" title="Download as Excel (.xlsx)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>
+        Excel
+      </button>
+      <button class="clm-ebtn" onclick="printTable()" title="Print / save as PDF">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="10" height="7" rx="1"/><path d="M5 5V3h6v2M5 10h6"/></svg>
+        Print / PDF
+      </button>
+    </div>
+
     <div class="clm-metrics">
       <div class="clm-metric"><div class="clm-mlabel">Hottest month</div> <div class="clm-mval" id="mHot"></div></div>
       <div class="clm-metric"><div class="clm-mlabel">Coldest month</div> <div class="clm-mval" id="mCold"></div></div>
@@ -131,6 +175,27 @@ body { margin: 0; padding: 1.5rem; background: #F9FAFB; font-family: 'Inter', sy
       <div class="clm-metric"><div class="clm-mlabel">Wettest month</div> <div class="clm-mval" id="mWet"></div></div>
       <div class="clm-metric"><div class="clm-mlabel">Driest month</div>  <div class="clm-mval" id="mDry"></div></div>
       <div class="clm-metric"><div class="clm-mlabel">Peak ET₀ month</div><div class="clm-mval" id="mET"></div></div>
+    </div>
+
+    <!-- Data table (always visible, also used for print) -->
+    <div class="clm-panel" id="clmPrintSec">
+      <p class="clm-ptitle">Monthly data table</p>
+      <div class="clm-tbl-wrap">
+        <table class="clm-tbl" id="clmTable">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th id="thHigh">Avg High (°C)</th>
+              <th id="thMean">Avg Mean (°C)</th>
+              <th id="thLow">Avg Low (°C)</th>
+              <th>Precip (mm)</th>
+              <th>ET₀ (mm)</th>
+              <th>Water Deficit (mm)</th>
+            </tr>
+          </thead>
+          <tbody id="clmTbody"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Temperature chart -->
@@ -142,267 +207,314 @@ body { margin: 0; padding: 1.5rem; background: #F9FAFB; font-family: 'Inter', sy
         <span class="clm-li"><span class="clm-sw" style="background:#1baf7a;"></span>Avg low</span>
       </div>
       <div class="clm-cwrap" style="height:200px;">
-        <canvas id="cTemp" role="img" aria-label="Monthly temperature at 2 metres chart"></canvas>
+        <canvas id="cTemp" role="img" aria-label="Monthly temperature at 2 metres"></canvas>
       </div>
     </div>
-
     <!-- ET₀ chart -->
     <div class="clm-panel">
-      <p class="clm-ptitle">Monthly ET₀ reference evapotranspiration (mm) — FAO-56 Penman-Monteith</p>
+      <p class="clm-ptitle">Monthly ET₀ vs precipitation (mm) — FAO-56 Penman-Monteith</p>
       <div class="clm-legend">
-        <span class="clm-li"><span class="clm-sw" style="background:#eda100;"></span>ET₀</span>
-        <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;"></span>Precipitation (overlay)</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#eda100;"></span>ET₀ evapotranspiration</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;opacity:.6;"></span>Precipitation (overlay)</span>
       </div>
       <div class="clm-cwrap" style="height:160px;">
-        <canvas id="cET" role="img" aria-label="Monthly ET0 evapotranspiration vs precipitation chart"></canvas>
+        <canvas id="cET" role="img" aria-label="Monthly ET0 vs precipitation"></canvas>
       </div>
     </div>
 
-    <p class="clm-credit">Source: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Historical Weather API (ERA5) · CC BY 4.0 · 3-year average</p>
+    <p class="clm-credit">Source: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Historical Weather API (ERA5) · CC BY 4.0 · 3-year historical average</p>
   </div>
 
 </div>
 <script>
-// ─── constants ───────────────────────────────────────────────────────────────
+// ── constants ────────────────────────────────────────────────────────────────
 const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-let D = null;          // aggregated monthly data
+let D    = null;   // aggregated monthly data [{avgHigh,avgLow,avgMean,precip,et}×12]
+let META = {};     // {city, coord, range}
 let unit = 'C';
 let chTemp = null, chPrecip = null, chET = null;
 
-// ─── date range: last 3 complete years ───────────────────────────────────────
+// ── date range helpers ───────────────────────────────────────────────────────
 function dateRange() {
-  const now  = new Date();
-  // end = last day of previous month
-  const end  = new Date(now.getFullYear(), now.getMonth(), 0);
-  // start = first day of same month, 3 years earlier
-  const start = new Date(end.getFullYear() - 3, end.getMonth(), 1);
-  const fmt = d => d.toISOString().slice(0, 10);
-  return { start: fmt(start), end: fmt(end),
-           label: fmt(start).slice(0,7) + ' → ' + fmt(end).slice(0,7) };
+  const now   = new Date();
+  const end   = new Date(now.getFullYear(), now.getMonth(), 0);      // last day prev month
+  const start = new Date(end.getFullYear()-3, end.getMonth(), 1);   // 3 yrs back, same month
+  const fmt   = d => d.toISOString().slice(0,10);
+  return { start:fmt(start), end:fmt(end),
+           label:fmt(start).slice(0,7)+' → '+fmt(end).slice(0,7) };
 }
 
-// ─── geocoding ───────────────────────────────────────────────────────────────
+// ── API calls ────────────────────────────────────────────────────────────────
 async function geocode(q) {
-  const url = 'https://geocoding-api.open-meteo.com/v1/search'
-    + '?name=' + encodeURIComponent(q) + '&count=1&language=en&format=json';
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('Geocoding request failed (' + r.status + ')');
+  const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='
+    +encodeURIComponent(q)+'&count=1&language=en&format=json');
+  if (!r.ok) throw new Error('Geocoding failed ('+r.status+')');
   const j = await r.json();
-  if (!j.results || !j.results.length) return null;
-  return j.results[0];   // { latitude, longitude, name, country, admin1 }
+  return (j.results && j.results.length) ? j.results[0] : null;
 }
 
-// ─── archive fetch ───────────────────────────────────────────────────────────
 async function fetchArchive(lat, lon, start, end) {
-  const vars = [
-    'temperature_2m_max',
-    'temperature_2m_min',
-    'precipitation_sum',
-    'et0_fao_evapotranspiration'
-  ].join(',');
-  const url = 'https://archive-api.open-meteo.com/v1/archive'
-    + '?latitude='   + lat
-    + '&longitude='  + lon
-    + '&start_date=' + start
-    + '&end_date='   + end
-    + '&daily='      + vars
-    + '&timezone=auto';
+  const vars = 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration';
+  const url  = 'https://archive-api.open-meteo.com/v1/archive'
+    +'?latitude='+lat+'&longitude='+lon
+    +'&start_date='+start+'&end_date='+end
+    +'&daily='+vars+'&timezone=auto';
   const r = await fetch(url);
-  if (!r.ok) {
-    const body = await r.text().catch(() => '');
-    throw new Error('Archive API request failed (' + r.status + '). ' + body.slice(0, 120));
-  }
+  if (!r.ok) { const t=await r.text().catch(()=>''); throw new Error('Archive API ('+r.status+'): '+t.slice(0,120)); }
   return r.json();
 }
 
-// ─── aggregate daily → monthly averages ──────────────────────────────────────
+// ── aggregate daily → monthly ─────────────────────────────────────────────
 function aggregate(daily) {
-  const b = Array.from({ length: 12 }, () =>
-    ({ highs: [], lows: [], precip: [], et: [] })
-  );
-  for (let i = 0; i < daily.time.length; i++) {
-    const m = new Date(daily.time[i]).getMonth();
-    const push = (arr, v) => { if (v !== null && v !== undefined) arr.push(v); };
-    push(b[m].highs,  daily.temperature_2m_max[i]);
-    push(b[m].lows,   daily.temperature_2m_min[i]);
-    push(b[m].precip, daily.precipitation_sum[i]);
-    push(b[m].et,     daily.et0_fao_evapotranspiration[i]);
+  const b = Array.from({length:12}, ()=>({hi:[],lo:[],pr:[],et:[]}));
+  for (let i=0;i<daily.time.length;i++) {
+    const m=new Date(daily.time[i]).getMonth();
+    const p=(arr,v)=>{ if(v!==null&&v!==undefined) arr.push(v); };
+    p(b[m].hi, daily.temperature_2m_max[i]);
+    p(b[m].lo, daily.temperature_2m_min[i]);
+    p(b[m].pr, daily.precipitation_sum[i]);
+    p(b[m].et, daily.et0_fao_evapotranspiration[i]);
   }
-  // average daily → monthly:
-  // precip & ET are daily sums → multiply avg by 30 to get monthly total
-  return b.map(x => ({
-    avgHigh:  avg(x.highs),
-    avgLow:   avg(x.lows),
-    avgMean:  (avg(x.highs) + avg(x.lows)) / 2,
-    precip:   avg(x.precip) * 30,
-    et:       avg(x.et) * 30
+  const a = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0;
+  return b.map(x=>({
+    avgHigh: a(x.hi),
+    avgLow:  a(x.lo),
+    avgMean: (a(x.hi)+a(x.lo))/2,
+    precip:  a(x.pr)*30,
+    et:      a(x.et)*30
   }));
 }
-function avg(a) { return a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0; }
 
-// ─── unit helpers ─────────────────────────────────────────────────────────────
-function toF(c) { return c * 9 / 5 + 32; }
-function conv(c){ return unit === 'C' ? c : toF(c); }
-function fmtT(c){ return Math.round(conv(c)) + '°' + unit; }
+// ── unit helpers ──────────────────────────────────────────────────────────────
+function toF(c)   { return c*9/5+32; }
+function conv(c)  { return unit==='C' ? c : toF(c); }
+function fmtT(c)  { return Math.round(conv(c))+'°'+unit; }
+function r2(n)    { return Math.round(n*10)/10; }  // 1 decimal
 
-// ─── main search ─────────────────────────────────────────────────────────────
+// ── main search ───────────────────────────────────────────────────────────────
 async function clmGo() {
   const q = document.getElementById('clmInput').value.trim();
   if (!q) return;
-
-  setStatus('<span class="clm-spin">Looking up ' + esc(q) + '…</span>');
+  setStatus('<span class="clm-spin">Looking up '+esc(q)+'…</span>');
   hide('clmOut'); hide('clmErr');
   document.getElementById('clmBtn').disabled = true;
-
   try {
-    // 1. geocode
     const loc = await geocode(q);
-    if (!loc) {
-      showErr('City not found. Try adding the country name, e.g. "Toledo, Spain".');
-      return;
-    }
-    const { latitude: lat, longitude: lon, name, country, admin1 } = loc;
-
-    // 2. date range
-    const { start, end, label } = dateRange();
+    if (!loc) { showErr('City not found. Try adding the country, e.g. "Toledo, Spain".'); return; }
+    const {latitude:lat, longitude:lon, name, country, admin1} = loc;
+    const {start,end,label} = dateRange();
     setStatus('<span class="clm-spin">Fetching 3 years of historical data…</span>');
-
-    // 3. fetch
     const json = await fetchArchive(lat, lon, start, end);
-
-    if (!json.daily || !json.daily.time || !json.daily.time.length) {
-      showErr('No historical data returned for this location. Try a nearby larger city.');
-      return;
+    if (!json.daily||!json.daily.time||!json.daily.time.length) {
+      showErr('No data for this location. Try a nearby larger city.'); return;
     }
-
-    // 4. aggregate
-    D = aggregate(json.daily);
-
-    // 5. populate labels
-    document.getElementById('clmCity').textContent  = name;
-    document.getElementById('clmCoord').textContent =
-      [admin1, country].filter(Boolean).join(', ')
-      + ' · ' + lat.toFixed(3) + '°, ' + lon.toFixed(3) + '°';
-    document.getElementById('clmRange').textContent = 'Data range: ' + label;
-
-    // 6. render
+    D    = aggregate(json.daily);
+    META = {
+      city:  name,
+      coord: [admin1,country].filter(Boolean).join(', ')+' · '+lat.toFixed(3)+'°, '+lon.toFixed(3)+'°',
+      range: 'Data range: '+label,
+      filename: name.replace(/[^a-z0-9]/gi,'_')
+    };
+    document.getElementById('clmCity').textContent  = META.city;
+    document.getElementById('clmCoord').textContent = META.coord;
+    document.getElementById('clmRange').textContent = META.range;
     render();
     hideStatus();
     show('clmOut');
-
-  } catch (err) {
-    // Show the real error message to help debugging
-    showErr('Error: ' + err.message);
+  } catch(e) {
+    showErr('Error: '+e.message);
   } finally {
     document.getElementById('clmBtn').disabled = false;
   }
 }
 
-// ─── render metrics + charts ─────────────────────────────────────────────────
+// ── render ────────────────────────────────────────────────────────────────────
 function render() {
-  const d = D;
-  const hotI  = d.reduce((mi, v, i, a) => v.avgHigh  > a[mi].avgHigh  ? i : mi, 0);
-  const coldI = d.reduce((mi, v, i, a) => v.avgLow   < a[mi].avgLow   ? i : mi, 0);
-  const wetI  = d.reduce((mi, v, i, a) => v.precip   > a[mi].precip   ? i : mi, 0);
-  const dryI  = d.reduce((mi, v, i, a) => v.precip   < a[mi].precip   ? i : mi, 0);
-  const etI   = d.reduce((mi, v, i, a) => v.et       > a[mi].et       ? i : mi, 0);
-  const annT  = d.reduce((s, v) => s + v.avgMean, 0) / 12;
+  const d=D;
+  const iMax=(fn)=>d.reduce((mi,v,i,a)=>fn(v)>fn(a[mi])?i:mi,0);
+  const iMin=(fn)=>d.reduce((mi,v,i,a)=>fn(v)<fn(a[mi])?i:mi,0);
+  const hotI=iMax(v=>v.avgHigh), coldI=iMin(v=>v.avgLow);
+  const wetI=iMax(v=>v.precip),  dryI=iMin(v=>v.precip), etI=iMax(v=>v.et);
+  const annT=d.reduce((s,v)=>s+v.avgMean,0)/12;
 
-  setText('mHot',  MO[hotI]  + ' ' + fmtT(d[hotI].avgHigh));
-  setText('mCold', MO[coldI] + ' ' + fmtT(d[coldI].avgLow));
+  setText('mHot',  MO[hotI] +' '+fmtT(d[hotI].avgHigh));
+  setText('mCold', MO[coldI]+' '+fmtT(d[coldI].avgLow));
   setText('mAvg',  fmtT(annT));
-  setText('mWet',  MO[wetI]  + ' ' + Math.round(d[wetI].precip)  + ' mm');
-  setText('mDry',  MO[dryI]  + ' ' + Math.round(d[dryI].precip)  + ' mm');
-  setText('mET',   MO[etI]   + ' ' + Math.round(d[etI].et)       + ' mm');
+  setText('mWet',  MO[wetI] +' '+Math.round(d[wetI].precip)+' mm');
+  setText('mDry',  MO[dryI] +' '+Math.round(d[dryI].precip)+' mm');
+  setText('mET',   MO[etI]  +' '+Math.round(d[etI].et)+' mm');
 
-  const highs   = d.map(v => Math.round(conv(v.avgHigh)));
-  const lows    = d.map(v => Math.round(conv(v.avgLow)));
-  const means   = d.map(v => Math.round(conv(v.avgMean)));
-  const precips = d.map(v => Math.round(v.precip));
-  const ets     = d.map(v => Math.round(v.et));
+  // Update column headers to reflect current unit
+  const u = '(°'+unit+')';
+  document.getElementById('thHigh').textContent = 'Avg High '+u;
+  document.getElementById('thMean').textContent = 'Avg Mean '+u;
+  document.getElementById('thLow').textContent  = 'Avg Low '+u;
 
-  const gridColor = 'rgba(0,0,0,0.06)';
-  const tickStyle = { color: '#6B7280', font: { size: 11 } };
-
-  // Temperature
-  if (chTemp) chTemp.destroy();
-  chTemp = new Chart(document.getElementById('cTemp'), {
-    type: 'line',
-    data: {
-      labels: MO,
-      datasets: [
-        { label:'Avg high', data:highs, borderColor:'#2a78d6', backgroundColor:'rgba(42,120,214,0.07)',  borderWidth:2, pointRadius:3, pointBackgroundColor:'#2a78d6', tension:0.4, fill:false },
-        { label:'Avg mean', data:means, borderColor:'#9085e9', backgroundColor:'rgba(144,133,233,0.05)', borderWidth:2, pointRadius:3, pointBackgroundColor:'#9085e9', tension:0.4, fill:false, borderDash:[5,3] },
-        { label:'Avg low',  data:lows,  borderColor:'#1baf7a', backgroundColor:'rgba(27,175,122,0.07)',  borderWidth:2, pointRadius:3, pointBackgroundColor:'#1baf7a', tension:0.4, fill:false }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '°' + unit } } },
-      scales:{
-        x:{ grid:{color:gridColor}, ticks:tickStyle },
-        y:{ grid:{color:gridColor}, ticks:{ ...tickStyle, callback: v => v + '°' + unit } }
-      }
-    }
+  // Build data table
+  const tbody = document.getElementById('clmTbody');
+  tbody.innerHTML = '';
+  let totPr=0, totET=0;
+  d.forEach((v,i)=>{
+    const deficit = r2(v.et - v.precip);
+    totPr += v.precip; totET += v.et;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>'+MO[i]+'</td>'+
+      '<td>'+r2(conv(v.avgHigh))+'</td>'+
+      '<td>'+r2(conv(v.avgMean))+'</td>'+
+      '<td>'+r2(conv(v.avgLow))+'</td>'+
+      '<td>'+Math.round(v.precip)+'</td>'+
+      '<td>'+Math.round(v.et)+'</td>'+
+      '<td style="color:'+(deficit>0?'#B91C1C':'#1E6B3A')+'">'+
+        (deficit>0?'+':'')+deficit+'</td>';
+    tbody.appendChild(tr);
   });
+  // Annual totals row
+  const totalDeficit = r2(totET - totPr);
+  const tfoot = document.createElement('tr');
+  tfoot.innerHTML =
+    '<td>Annual</td>'+
+    '<td>—</td><td>'+r2(conv(annT))+'</td><td>—</td>'+
+    '<td>'+Math.round(totPr)+'</td>'+
+    '<td>'+Math.round(totET)+'</td>'+
+    '<td style="color:'+(totalDeficit>0?'#B91C1C':'#1E6B3A')+'">'+
+      (totalDeficit>0?'+':'')+totalDeficit+'</td>';
+  tbody.appendChild(tfoot);
 
-  // Precipitation
-  if (chPrecip) chPrecip.destroy();
-  chPrecip = new Chart(document.getElementById('cPrecip'), {
-    type:'bar',
-    data:{ labels:MO, datasets:[{ label:'Precipitation', data:precips, backgroundColor:'rgba(42,120,214,0.7)', borderRadius:4, borderSkipped:false }] },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.parsed.y + ' mm' } } },
-      scales:{
-        x:{ grid:{display:false}, ticks:tickStyle },
-        y:{ grid:{color:gridColor}, ticks:{ ...tickStyle, callback: v => v + ' mm' }, beginAtZero:true }
-      }
-    }
-  });
+  // Charts
+  const hi=d.map(v=>r2(conv(v.avgHigh))), lo=d.map(v=>r2(conv(v.avgLow))), me=d.map(v=>r2(conv(v.avgMean)));
+  const pr=d.map(v=>Math.round(v.precip)), et=d.map(v=>Math.round(v.et));
+  const gc='rgba(0,0,0,0.06)', tk={color:'#6B7280',font:{size:11}};
 
-  // ET₀ vs Precipitation (overlay)
-  if (chET) chET.destroy();
-  chET = new Chart(document.getElementById('cET'), {
-    type:'bar',
-    data:{
-      labels:MO,
-      datasets:[
-        { label:'ET₀',          data:ets,     backgroundColor:'rgba(237,161,0,0.75)',   borderRadius:4, borderSkipped:false, order:2 },
-        { label:'Precipitation', data:precips, backgroundColor:'rgba(42,120,214,0.45)',  borderRadius:4, borderSkipped:false, order:1 }
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + ' mm' } }
-      },
-      scales:{
-        x:{ grid:{display:false}, ticks:tickStyle },
-        y:{ grid:{color:gridColor}, ticks:{ ...tickStyle, callback: v => v + ' mm' }, beginAtZero:true }
-      }
-    }
-  });
+  if(chTemp)   chTemp.destroy();
+  if(chPrecip) chPrecip.destroy();
+  if(chET)     chET.destroy();
+
+  chTemp = new Chart(document.getElementById('cTemp'),{type:'line',data:{labels:MO,datasets:[
+    {label:'Avg high',data:hi,borderColor:'#2a78d6',backgroundColor:'rgba(42,120,214,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#2a78d6',tension:0.4,fill:false},
+    {label:'Avg mean',data:me,borderColor:'#9085e9',backgroundColor:'rgba(144,133,233,0.05)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#9085e9',tension:0.4,fill:false,borderDash:[5,3]},
+    {label:'Avg low', data:lo,borderColor:'#1baf7a',backgroundColor:'rgba(27,175,122,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#1baf7a',tension:0.4,fill:false}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+'°'+unit}}},
+    scales:{x:{grid:{color:gc},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+'°'+unit}}}}});
+
+  chPrecip = new Chart(document.getElementById('cPrecip'),{type:'bar',
+    data:{labels:MO,datasets:[{label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.7)',borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' mm'}}},
+      scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
+
+  chET = new Chart(document.getElementById('cET'),{type:'bar',
+    data:{labels:MO,datasets:[
+      {label:'ET₀',data:et,backgroundColor:'rgba(237,161,0,0.78)',borderRadius:4,borderSkipped:false,order:2},
+      {label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.42)',borderRadius:4,borderSkipped:false,order:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+' mm'}}},
+      scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
 }
 
-// ─── unit toggle ──────────────────────────────────────────────────────────────
+// ── unit toggle ───────────────────────────────────────────────────────────────
 function clmUnit(u) {
-  unit = u;
-  document.getElementById('clmC').classList.toggle('on', u === 'C');
-  document.getElementById('clmF').classList.toggle('on', u === 'F');
+  unit=u;
+  document.getElementById('clmC').classList.toggle('on',u==='C');
+  document.getElementById('clmF').classList.toggle('on',u==='F');
   if (D) render();
 }
 
-// ─── DOM helpers ──────────────────────────────────────────────────────────────
-document.getElementById('clmInput').addEventListener('keydown', e => { if (e.key === 'Enter') clmGo(); });
-function setStatus(html) { const el = document.getElementById('clmStatus'); el.innerHTML = html; el.style.display = 'block'; }
-function hideStatus()    { document.getElementById('clmStatus').style.display = 'none'; }
-function show(id)        { document.getElementById(id).style.display = 'block'; }
-function hide(id)        { document.getElementById(id).style.display = 'none'; }
-function setText(id, t)  { document.getElementById(id).textContent = t; }
-function showErr(msg)    { const el = document.getElementById('clmErr'); el.textContent = msg; el.style.display = 'block'; hideStatus(); }
-function esc(s)          { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ── EXPORT: build row data ────────────────────────────────────────────────────
+function buildRows() {
+  const u = '°'+unit;
+  const headers = ['Month','Avg High ('+u+')','Avg Mean ('+u+')','Avg Low ('+u+')','Precipitation (mm)','ET₀ (mm)','Water Deficit (mm)'];
+  let totPr=0, totET=0, annT=0;
+  const rows = D.map((v,i)=>{
+    const hi=r2(conv(v.avgHigh)), me=r2(conv(v.avgMean)), lo=r2(conv(v.avgLow));
+    const pr=Math.round(v.precip), et=Math.round(v.et), def=r2(v.et-v.precip);
+    totPr+=v.precip; totET+=v.et; annT+=v.avgMean;
+    return [MO[i], hi, me, lo, pr, et, def];
+  });
+  const totalDef = r2(totET-totPr);
+  rows.push(['Annual', '—', r2(conv(annT/12)), '—', Math.round(totPr), Math.round(totET), totalDef]);
+  return {headers, rows};
+}
+
+// ── EXPORT: CSV ───────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!D) return;
+  const {headers, rows} = buildRows();
+  const meta = [
+    ['Location', META.city],
+    ['Coordinates', META.coord],
+    [META.range],
+    ['Source', 'Open-Meteo ERA5 Historical Weather API'],
+    []
+  ];
+  const escape = v => { const s=String(v); return s.includes(',')? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const lines = [
+    ...meta.map(r=>r.map(escape).join(',')),
+    headers.map(escape).join(','),
+    ...rows.map(r=>r.map(escape).join(','))
+  ];
+  download(lines.join('\r\n'), META.filename+'_climate.csv', 'text/csv');
+}
+
+// ── EXPORT: Excel (.xlsx via SheetJS) ────────────────────────────────────────
+function exportXLSX() {
+  if (!D || typeof XLSX === 'undefined') { alert('Excel library not loaded — try again.'); return; }
+  const {headers, rows} = buildRows();
+
+  const ws_data = [
+    ['Location', META.city],
+    ['Coordinates', META.coord],
+    [META.range],
+    ['Source', 'Open-Meteo ERA5 Historical Weather API'],
+    [],
+    headers,
+    ...rows
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Column widths
+  ws['!cols'] = [14,16,16,14,20,12,22].map(w=>({wch:w}));
+
+  // Bold the header row (row index 5, 0-based)
+  const headerRowIdx = 5;
+  headers.forEach((_,ci)=>{
+    const addr = XLSX.utils.encode_cell({r:headerRowIdx, c:ci});
+    if (ws[addr]) ws[addr].s = { font:{bold:true}, fill:{fgColor:{rgb:'E8F0FA'}} };
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, META.city.slice(0,31));
+  XLSX.writeFile(wb, META.filename+'_climate.xlsx');
+}
+
+// ── EXPORT: Print / PDF ───────────────────────────────────────────────────────
+function printTable() {
+  if (!D) return;
+  window.print();
+}
+
+// ── download helper ───────────────────────────────────────────────────────────
+function download(content, filename, mime) {
+  const blob = new Blob([content], {type: mime+';charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.style.display = 'none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 500);
+}
+
+// ── DOM helpers ───────────────────────────────────────────────────────────────
+document.getElementById('clmInput').addEventListener('keydown', e=>{ if(e.key==='Enter') clmGo(); });
+function setStatus(h) { const el=document.getElementById('clmStatus'); el.innerHTML=h; el.style.display='block'; }
+function hideStatus() { document.getElementById('clmStatus').style.display='none'; }
+function show(id)     { document.getElementById(id).style.display='block'; }
+function hide(id)     { document.getElementById(id).style.display='none'; }
+function setText(id,t){ document.getElementById(id).textContent=t; }
+function showErr(m)   { const el=document.getElementById('clmErr'); el.textContent=m; el.style.display='block'; hideStatus(); }
+function esc(s)       { return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 </script>
 </body>
 </html>

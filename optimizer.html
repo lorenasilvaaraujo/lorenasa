@@ -23,6 +23,7 @@
 <title>Aquaponics NPV Optimizer</title>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; padding: 1.5rem; background: #F9FAFB; }
@@ -119,61 +120,52 @@
   .aqo-bar.neg { background: var(--aqo-red-lt); border: 1px solid var(--aqo-red); }
   .aqo-bar-val { font-size: .6rem; color: var(--aqo-muted); white-space: nowrap; }
 
-  /* ═══════════════════════════════════════════════
-     CLIMATE AVERAGES WIDGET — added below optimizer
-     ═══════════════════════════════════════════════ */
-  .clm-wrap {
-    max-width: 1100px;
-    margin: 2rem auto 0;
-    border: 1px solid #D1D5DB;
-    border-radius: 12px;
-    padding: 1.5rem;
-    background: #F9FAFB;
-    font-family: 'Inter', system-ui, sans-serif;
-    color: #111827;
-  }
-  .clm-wrap h2 { margin: 0 0 .2rem; font-size: 1.1rem; font-weight: 700; color: #1A4A7A; }
-  .clm-sub { margin: 0 0 1.25rem; font-size: .8rem; color: #6B7280; }
-  .clm-search { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
-  .clm-search input {
-    flex: 1; min-width: 180px; padding: .5rem .75rem;
-    border: 1px solid #D1D5DB; border-radius: 8px;
-    font-size: .875rem; background: #fff; color: #111827; font-family: inherit;
-  }
-  .clm-search input:focus { outline: 2px solid #1A4A7A; border-color: transparent; }
-  .clm-sbtn {
-    padding: .5rem 1.25rem; background: #1A4A7A; color: #fff;
-    border: none; border-radius: 8px; font-size: .875rem;
-    font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s;
-  }
-  .clm-sbtn:hover:not(:disabled) { background: #12325a; }
-  .clm-sbtn:disabled { opacity: .55; cursor: not-allowed; }
-  .clm-units { display: flex; gap: 6px; margin-bottom: 1rem; }
-  .clm-ubtn {
-    padding: 3px 14px; border-radius: 8px; border: 1px solid #D1D5DB;
-    background: transparent; color: #6B7280; font-size: .8rem;
-    cursor: pointer; font-family: inherit; transition: all .15s;
-  }
-  .clm-ubtn.on { background: #1A4A7A; color: #fff; border-color: #1A4A7A; }
-  .clm-city  { font-size: 1rem; font-weight: 700; margin: 0 0 2px; }
-  .clm-coord { font-size: .75rem; color: #6B7280; margin: 0 0 .25rem; }
-  .clm-range { font-size: .72rem; color: #6B7280; margin: 0 0 1rem; font-style: italic; }
-  .clm-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
-  .clm-metric  { background: #fff; border: 1px solid #D1D5DB; border-radius: 8px; padding: .75rem 1rem; }
-  .clm-mlabel  { font-size: .68rem; color: #6B7280; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
-  .clm-mval    { font-size: 1.05rem; font-weight: 700; }
-  .clm-panel   { background: #fff; border: 1px solid #D1D5DB; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-  .clm-ptitle  { font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #1A4A7A; margin: 0 0 .6rem; }
-  .clm-legend  { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-  .clm-li      { display: flex; align-items: center; gap: 5px; font-size: .73rem; color: #6B7280; }
-  .clm-sw      { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-  .clm-cwrap   { position: relative; width: 100%; }
-  .clm-status  { text-align: center; padding: 2rem 1rem; color: #6B7280; font-size: .875rem; }
-  .clm-err     { background: #FEE2E2; border: 1px solid #B91C1C; border-radius: 8px; padding: .75rem 1rem; margin-bottom: 1rem; font-size: .82rem; color: #B91C1C; }
-  .clm-spin    { display: inline-block; animation: clmspin 1s ease-in-out infinite; }
-  @keyframes clmspin { 0%,100%{opacity:1} 50%{opacity:.3} }
-  .clm-credit  { font-size: .68rem; color: #6B7280; text-align: right; margin-top: .5rem; }
-  .clm-credit a { color: #6B7280; }
+  /* ══════════════════════════════════════════════════════
+     CLIMATE WIDGET — added below the NPV Optimizer
+     ══════════════════════════════════════════════════════ */
+  .clm-wrap{max-width:1100px;margin:2rem auto 0;border:1px solid #D1D5DB;border-radius:12px;padding:1.5rem;background:#F9FAFB;font-family:'Inter',system-ui,sans-serif;color:#111827;}
+  .clm-wrap h2{margin:0 0 .2rem;font-size:1.1rem;font-weight:700;color:#1A4A7A;}
+  .clm-sub{margin:0 0 1.25rem;font-size:.8rem;color:#6B7280;}
+  .clm-search{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;}
+  .clm-search input{flex:1;min-width:180px;padding:.5rem .75rem;border:1px solid #D1D5DB;border-radius:8px;font-size:.875rem;background:#fff;color:#111827;font-family:inherit;}
+  .clm-search input:focus{outline:2px solid #1A4A7A;border-color:transparent;}
+  .clm-sbtn{padding:.5rem 1.25rem;background:#1A4A7A;color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;}
+  .clm-sbtn:hover:not(:disabled){background:#12325a;}
+  .clm-sbtn:disabled{opacity:.55;cursor:not-allowed;}
+  .clm-export{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem;}
+  .clm-export-label{font-size:.75rem;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+  .clm-ebtn{padding:.35rem 1rem;background:transparent;color:#1A4A7A;border:1.5px solid #1A4A7A;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s,color .15s;display:flex;align-items:center;gap:5px;}
+  .clm-ebtn:hover{background:#1A4A7A;color:#fff;}
+  .clm-ebtn svg{width:14px;height:14px;flex-shrink:0;}
+  .clm-units{display:flex;gap:6px;margin-bottom:1rem;}
+  .clm-ubtn{padding:3px 14px;border-radius:8px;border:1px solid #D1D5DB;background:transparent;color:#6B7280;font-size:.8rem;cursor:pointer;font-family:inherit;transition:all .15s;}
+  .clm-ubtn.on{background:#1A4A7A;color:#fff;border-color:#1A4A7A;}
+  .clm-city{font-size:1rem;font-weight:700;margin:0 0 2px;}
+  .clm-coord{font-size:.75rem;color:#6B7280;margin:0 0 .25rem;}
+  .clm-range{font-size:.72rem;color:#6B7280;margin:0 0 1rem;font-style:italic;}
+  .clm-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.25rem;}
+  .clm-metric{background:#fff;border:1px solid #D1D5DB;border-radius:8px;padding:.75rem 1rem;}
+  .clm-mlabel{font-size:.68rem;color:#6B7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;}
+  .clm-mval{font-size:1.05rem;font-weight:700;}
+  .clm-panel{background:#fff;border:1px solid #D1D5DB;border-radius:8px;padding:1rem;margin-bottom:1rem;}
+  .clm-ptitle{font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1A4A7A;margin:0 0 .6rem;}
+  .clm-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
+  .clm-li{display:flex;align-items:center;gap:5px;font-size:.73rem;color:#6B7280;}
+  .clm-sw{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+  .clm-cwrap{position:relative;width:100%;}
+  .clm-tbl-wrap{overflow-x:auto;margin-top:.5rem;}
+  .clm-tbl{width:100%;border-collapse:collapse;font-size:.78rem;}
+  .clm-tbl th{background:#F9FAFB;color:#1A4A7A;font-weight:700;text-align:right;padding:.4rem .6rem;border-bottom:2px solid #D1D5DB;white-space:nowrap;}
+  .clm-tbl th:first-child{text-align:left;}
+  .clm-tbl td{padding:.35rem .6rem;border-bottom:1px solid #D1D5DB;text-align:right;white-space:nowrap;}
+  .clm-tbl td:first-child{text-align:left;font-weight:600;color:#1A4A7A;}
+  .clm-tbl tr:last-child td{border-bottom:none;font-weight:700;background:#F9FAFB;}
+  .clm-status{text-align:center;padding:2rem 1rem;color:#6B7280;font-size:.875rem;}
+  .clm-err{background:#FEE2E2;border:1px solid #B91C1C;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.82rem;color:#B91C1C;}
+  .clm-spin{display:inline-block;animation:clmsp 1s ease-in-out infinite;}
+  @keyframes clmsp{0%,100%{opacity:1}50%{opacity:.3}}
+  .clm-credit{font-size:.68rem;color:#6B7280;text-align:right;margin-top:.5rem;}
+  .clm-credit a{color:#6B7280;}
 </style>
 </head>
 <body>
@@ -379,20 +371,18 @@ createApp({
 </script>
 
 
-<!-- ════════════════════════════════════════════════════════
+<!-- ════════════════════════════════════════════════════════════
      CLIMATE AVERAGES WIDGET
-     Placed below the Aquaponics NPV Optimizer.
-     Variables: temperature at 2 m, precipitation, ET₀
-     Data: Open-Meteo ERA5 archive, last 3 complete years.
-     No API key required.
-     ════════════════════════════════════════════════════════ -->
+     Variables : temperature at 2 m, precipitation, ET₀ (FAO-56)
+     Exports   : CSV · Excel (.xlsx) · Print / PDF
+     Data      : Open-Meteo ERA5, last 3 complete years
+     ════════════════════════════════════════════════════════════ -->
 <div class="clm-wrap">
-
   <h2>Climate Averages</h2>
-  <p class="clm-sub">Temperature at 2 m, precipitation and ET₀ reference evapotranspiration — monthly averages over the last 3 years.</p>
+  <p class="clm-sub">Temperature at 2 m · Precipitation · ET₀ evapotranspiration — 3-year monthly historical averages.</p>
 
   <div class="clm-search">
-    <input type="text" id="clmInput" placeholder="Enter a city, e.g. São Paulo…" />
+    <input type="text" id="clmInput" placeholder="Enter a city, e.g. São Paulo…"/>
     <button class="clm-sbtn" id="clmBtn" onclick="clmGo()">Search</button>
   </div>
 
@@ -410,6 +400,23 @@ createApp({
     <p class="clm-coord" id="clmCoord"></p>
     <p class="clm-range" id="clmRange"></p>
 
+    <!-- Export bar -->
+    <div class="clm-export">
+      <span class="clm-export-label">Export</span>
+      <button class="clm-ebtn" onclick="clmExportCSV()" title="Download as CSV">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>
+        CSV
+      </button>
+      <button class="clm-ebtn" onclick="clmExportXLSX()" title="Download as Excel">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10v4h12v-4M8 2v8M5 7l3 3 3-3"/></svg>
+        Excel
+      </button>
+      <button class="clm-ebtn" onclick="clmPrint()" title="Print / save as PDF">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="10" height="7" rx="1"/><path d="M5 5V3h6v2M5 10h6"/></svg>
+        Print / PDF
+      </button>
+    </div>
+
     <div class="clm-metrics">
       <div class="clm-metric"><div class="clm-mlabel">Hottest month</div> <div class="clm-mval" id="mHot"></div></div>
       <div class="clm-metric"><div class="clm-mlabel">Coldest month</div> <div class="clm-mval" id="mCold"></div></div>
@@ -419,6 +426,25 @@ createApp({
       <div class="clm-metric"><div class="clm-mlabel">Peak ET₀ month</div><div class="clm-mval" id="mET"></div></div>
     </div>
 
+    <!-- Data table -->
+    <div class="clm-panel">
+      <p class="clm-ptitle">Monthly data table</p>
+      <div class="clm-tbl-wrap">
+        <table class="clm-tbl" id="clmTable">
+          <thead><tr>
+            <th>Month</th>
+            <th id="thHigh">Avg High (°C)</th>
+            <th id="thMean">Avg Mean (°C)</th>
+            <th id="thLow">Avg Low (°C)</th>
+            <th>Precip (mm)</th>
+            <th>ET₀ (mm)</th>
+            <th>Water Deficit (mm)</th>
+          </tr></thead>
+          <tbody id="clmTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="clm-panel">
       <p class="clm-ptitle">Monthly temperature at 2 m</p>
       <div class="clm-legend">
@@ -426,9 +452,7 @@ createApp({
         <span class="clm-li"><span class="clm-sw" style="background:#9085e9;"></span>Avg mean</span>
         <span class="clm-li"><span class="clm-sw" style="background:#1baf7a;"></span>Avg low</span>
       </div>
-      <div class="clm-cwrap" style="height:200px;">
-        <canvas id="cTemp" role="img" aria-label="Monthly temperature at 2 metres"></canvas>
-      </div>
+      <div class="clm-cwrap" style="height:200px;"><canvas id="cTemp"></canvas></div>
     </div>
 
     <div class="clm-panel">
@@ -436,168 +460,172 @@ createApp({
       <div class="clm-legend">
         <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;"></span>Total precipitation</span>
       </div>
-      <div class="clm-cwrap" style="height:160px;">
-        <canvas id="cPrecip" role="img" aria-label="Monthly precipitation"></canvas>
-      </div>
+      <div class="clm-cwrap" style="height:160px;"><canvas id="cPrecip"></canvas></div>
     </div>
 
     <div class="clm-panel">
-      <p class="clm-ptitle">Monthly ET₀ reference evapotranspiration vs precipitation (mm) — FAO-56 Penman-Monteith</p>
+      <p class="clm-ptitle">Monthly ET₀ vs precipitation (mm) — FAO-56 Penman-Monteith</p>
       <div class="clm-legend">
-        <span class="clm-li"><span class="clm-sw" style="background:#eda100;"></span>ET₀ evapotranspiration</span>
-        <span class="clm-li"><span class="clm-sw" style="background:#2a78d6; opacity:.6;"></span>Precipitation (overlay)</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#eda100;"></span>ET₀</span>
+        <span class="clm-li"><span class="clm-sw" style="background:#2a78d6;opacity:.6;"></span>Precipitation (overlay)</span>
       </div>
-      <div class="clm-cwrap" style="height:160px;">
-        <canvas id="cET" role="img" aria-label="Monthly ET0 vs precipitation"></canvas>
-      </div>
+      <div class="clm-cwrap" style="height:160px;"><canvas id="cET"></canvas></div>
     </div>
 
-    <p class="clm-credit">Source: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Historical Weather API (ERA5) · CC BY 4.0 · 3-year historical average</p>
+    <p class="clm-credit">Source: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> ERA5 Historical Weather API · CC BY 4.0 · 3-year historical average</p>
   </div>
 </div>
 <script>
-/* ── Climate Widget ─────────────────────────────────────────────────────── */
-(function () {
-  const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  let D = null, unit = 'C';
-  let chTemp = null, chPrecip = null, chET = null;
+(function(){
+  const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let D=null, META={}, unit='C';
+  let chT=null, chP=null, chE=null;
 
-  function dateRange() {
-    const now   = new Date();
-    const end   = new Date(now.getFullYear(), now.getMonth(), 0);          // last day of prev month
-    const start = new Date(end.getFullYear() - 3, end.getMonth(), 1);     // 3 years back, same month
-    const fmt   = d => d.toISOString().slice(0, 10);
-    return { start: fmt(start), end: fmt(end),
-             label: fmt(start).slice(0,7) + ' → ' + fmt(end).slice(0,7) };
+  function dateRange(){
+    const now=new Date();
+    const end=new Date(now.getFullYear(),now.getMonth(),0);
+    const start=new Date(end.getFullYear()-3,end.getMonth(),1);
+    const fmt=d=>d.toISOString().slice(0,10);
+    return{start:fmt(start),end:fmt(end),label:fmt(start).slice(0,7)+' → '+fmt(end).slice(0,7)};
   }
-
-  async function geocode(q) {
-    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='
-      + encodeURIComponent(q) + '&count=1&language=en&format=json');
-    if (!r.ok) throw new Error('Geocoding failed (' + r.status + ')');
-    const j = await r.json();
-    return (j.results && j.results.length) ? j.results[0] : null;
+  async function geocode(q){
+    const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=1&language=en&format=json');
+    if(!r.ok)throw new Error('Geocoding failed ('+r.status+')');
+    const j=await r.json();
+    return(j.results&&j.results.length)?j.results[0]:null;
   }
-
-  async function fetchArchive(lat, lon, start, end) {
-    const vars = 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration';
-    const url  = 'https://archive-api.open-meteo.com/v1/archive'
-      + '?latitude='   + lat
-      + '&longitude='  + lon
-      + '&start_date=' + start
-      + '&end_date='   + end
-      + '&daily='      + vars
-      + '&timezone=auto';
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('Archive API failed (' + r.status + ')');
+  async function fetchArchive(lat,lon,start,end){
+    const vars='temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration';
+    const url='https://archive-api.open-meteo.com/v1/archive?latitude='+lat+'&longitude='+lon+'&start_date='+start+'&end_date='+end+'&daily='+vars+'&timezone=auto';
+    const r=await fetch(url);
+    if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('Archive API ('+r.status+'): '+t.slice(0,120));}
     return r.json();
   }
-
-  function aggregate(daily) {
-    const b = Array.from({ length: 12 }, () => ({ hi:[], lo:[], pr:[], et:[] }));
-    for (let i = 0; i < daily.time.length; i++) {
-      const m = new Date(daily.time[i]).getMonth();
-      const p = (arr, v) => { if (v !== null && v !== undefined) arr.push(v); };
-      p(b[m].hi, daily.temperature_2m_max[i]);
-      p(b[m].lo, daily.temperature_2m_min[i]);
-      p(b[m].pr, daily.precipitation_sum[i]);
-      p(b[m].et, daily.et0_fao_evapotranspiration[i]);
+  function aggregate(daily){
+    const b=Array.from({length:12},()=>({hi:[],lo:[],pr:[],et:[]}));
+    for(let i=0;i<daily.time.length;i++){
+      const m=new Date(daily.time[i]).getMonth();
+      const p=(arr,v)=>{if(v!==null&&v!==undefined)arr.push(v);};
+      p(b[m].hi,daily.temperature_2m_max[i]);p(b[m].lo,daily.temperature_2m_min[i]);
+      p(b[m].pr,daily.precipitation_sum[i]);p(b[m].et,daily.et0_fao_evapotranspiration[i]);
     }
-    const a = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0;
-    return b.map(x => ({
-      avgHigh: a(x.hi),
-      avgLow:  a(x.lo),
-      avgMean: (a(x.hi)+a(x.lo))/2,
-      precip:  a(x.pr)*30,
-      et:      a(x.et)*30
-    }));
+    const a=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:0;
+    return b.map(x=>({avgHigh:a(x.hi),avgLow:a(x.lo),avgMean:(a(x.hi)+a(x.lo))/2,precip:a(x.pr)*30,et:a(x.et)*30}));
   }
+  const toF=c=>c*9/5+32, conv=c=>unit==='C'?c:toF(c), r2=n=>Math.round(n*10)/10;
+  const fmtT=c=>r2(conv(c))+'°'+unit;
 
-  function toF(c)  { return c*9/5+32; }
-  function conv(c) { return unit==='C' ? c : toF(c); }
-  function fmtT(c) { return Math.round(conv(c)) + '°' + unit; }
-
-  window.clmGo = async function() {
-    const q = document.getElementById('clmInput').value.trim();
-    if (!q) return;
-    clmSt('<span class="clm-spin">Looking up ' + clmE(q) + '…</span>');
-    clmH('clmOut'); clmH('clmErr');
-    document.getElementById('clmBtn').disabled = true;
-    try {
-      const loc = await geocode(q);
-      if (!loc) { clmEr('City not found. Try adding the country name, e.g. "Toledo, Spain".'); return; }
-      const { latitude:lat, longitude:lon, name, country, admin1 } = loc;
-      const { start, end, label } = dateRange();
+  window.clmGo=async function(){
+    const q=document.getElementById('clmInput').value.trim();
+    if(!q)return;
+    clmSt('<span class="clm-spin">Looking up '+clmE(q)+'…</span>');
+    clmH('clmOut');clmH('clmErr');
+    document.getElementById('clmBtn').disabled=true;
+    try{
+      const loc=await geocode(q);
+      if(!loc){clmEr('City not found. Try adding the country, e.g. "Toledo, Spain".');return;}
+      const{latitude:lat,longitude:lon,name,country,admin1}=loc;
+      const{start,end,label}=dateRange();
       clmSt('<span class="clm-spin">Fetching 3 years of historical data…</span>');
-      const json = await fetchArchive(lat, lon, start, end);
-      if (!json.daily || !json.daily.time || !json.daily.time.length) {
-        clmEr('No historical data returned. Try a nearby larger city.'); return;
-      }
-      D = aggregate(json.daily);
-      document.getElementById('clmCity').textContent  = name;
-      document.getElementById('clmCoord').textContent = [admin1,country].filter(Boolean).join(', ')+' · '+lat.toFixed(3)+'°, '+lon.toFixed(3)+'°';
-      document.getElementById('clmRange').textContent = 'Data range: ' + label;
-      render();
-      clmHS();
-      document.getElementById('clmOut').style.display='block';
-    } catch(e) {
-      clmEr('Error: ' + e.message);
-    } finally {
-      document.getElementById('clmBtn').disabled = false;
-    }
+      const json=await fetchArchive(lat,lon,start,end);
+      if(!json.daily||!json.daily.time||!json.daily.time.length){clmEr('No data. Try a nearby larger city.');return;}
+      D=aggregate(json.daily);
+      META={city:name,coord:[admin1,country].filter(Boolean).join(', ')+' · '+lat.toFixed(3)+'°, '+lon.toFixed(3)+'°',range:'Data range: '+label,filename:name.replace(/[^a-z0-9]/gi,'_')};
+      document.getElementById('clmCity').textContent=META.city;
+      document.getElementById('clmCoord').textContent=META.coord;
+      document.getElementById('clmRange').textContent=META.range;
+      render();clmHS();document.getElementById('clmOut').style.display='block';
+    }catch(e){clmEr('Error: '+e.message);}
+    finally{document.getElementById('clmBtn').disabled=false;}
   };
 
-  function render() {
-    const d = D;
-    const iMax = (fn) => d.reduce((mi,v,i,a) => fn(v)>fn(a[mi])?i:mi, 0);
-    const iMin = (fn) => d.reduce((mi,v,i,a) => fn(v)<fn(a[mi])?i:mi, 0);
-    const hotI=iMax(v=>v.avgHigh), coldI=iMin(v=>v.avgLow), wetI=iMax(v=>v.precip), dryI=iMin(v=>v.precip), etI=iMax(v=>v.et);
+  function render(){
+    const d=D;
+    const iMax=fn=>d.reduce((mi,v,i,a)=>fn(v)>fn(a[mi])?i:mi,0);
+    const iMin=fn=>d.reduce((mi,v,i,a)=>fn(v)<fn(a[mi])?i:mi,0);
+    const hotI=iMax(v=>v.avgHigh),coldI=iMin(v=>v.avgLow),wetI=iMax(v=>v.precip),dryI=iMin(v=>v.precip),etI=iMax(v=>v.et);
     const annT=d.reduce((s,v)=>s+v.avgMean,0)/12;
+    const st=(id,t)=>document.getElementById(id).textContent=t;
+    st('mHot',MO[hotI]+' '+fmtT(d[hotI].avgHigh));st('mCold',MO[coldI]+' '+fmtT(d[coldI].avgLow));
+    st('mAvg',fmtT(annT));st('mWet',MO[wetI]+' '+Math.round(d[wetI].precip)+' mm');
+    st('mDry',MO[dryI]+' '+Math.round(d[dryI].precip)+' mm');st('mET',MO[etI]+' '+Math.round(d[etI].et)+' mm');
 
-    const st = (id,t) => document.getElementById(id).textContent=t;
-    st('mHot',  MO[hotI] +' '+fmtT(d[hotI].avgHigh));
-    st('mCold', MO[coldI]+' '+fmtT(d[coldI].avgLow));
-    st('mAvg',  fmtT(annT));
-    st('mWet',  MO[wetI] +' '+Math.round(d[wetI].precip)+' mm');
-    st('mDry',  MO[dryI] +' '+Math.round(d[dryI].precip)+' mm');
-    st('mET',   MO[etI]  +' '+Math.round(d[etI].et)+' mm');
+    const u='°'+unit;
+    document.getElementById('thHigh').textContent='Avg High ('+u+')';
+    document.getElementById('thMean').textContent='Avg Mean ('+u+')';
+    document.getElementById('thLow').textContent='Avg Low ('+u+')';
 
-    const hi=d.map(v=>Math.round(conv(v.avgHigh))), lo=d.map(v=>Math.round(conv(v.avgLow))), me=d.map(v=>Math.round(conv(v.avgMean)));
-    const pr=d.map(v=>Math.round(v.precip)), et=d.map(v=>Math.round(v.et));
-    const gc='rgba(0,0,0,0.06)', tk={color:'#6B7280',font:{size:11}};
+    const tbody=document.getElementById('clmTbody');tbody.innerHTML='';
+    let totPr=0,totET=0;
+    d.forEach((v,i)=>{
+      const def=r2(v.et-v.precip);totPr+=v.precip;totET+=v.et;
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td>'+MO[i]+'</td><td>'+r2(conv(v.avgHigh))+'</td><td>'+r2(conv(v.avgMean))+'</td><td>'+r2(conv(v.avgLow))+'</td><td>'+Math.round(v.precip)+'</td><td>'+Math.round(v.et)+'</td><td style="color:'+(def>0?'#B91C1C':'#1E6B3A')+'">'+(def>0?'+':'')+def+'</td>';
+      tbody.appendChild(tr);
+    });
+    const td=r2(totET-totPr),annRow=document.createElement('tr');
+    annRow.innerHTML='<td>Annual</td><td>—</td><td>'+r2(conv(annT))+'</td><td>—</td><td>'+Math.round(totPr)+'</td><td>'+Math.round(totET)+'</td><td style="color:'+(td>0?'#B91C1C':'#1E6B3A')+'">'+(td>0?'+':'')+td+'</td>';
+    tbody.appendChild(annRow);
 
-    if(chTemp)   chTemp.destroy();
-    if(chPrecip) chPrecip.destroy();
-    if(chET)     chET.destroy();
-
-    chTemp = new Chart(document.getElementById('cTemp'),{type:'line',data:{labels:MO,datasets:[
-      {label:'Avg high',data:hi,borderColor:'#2a78d6',backgroundColor:'rgba(42,120,214,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#2a78d6',tension:0.4,fill:false},
-      {label:'Avg mean',data:me,borderColor:'#9085e9',backgroundColor:'rgba(144,133,233,0.05)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#9085e9',tension:0.4,fill:false,borderDash:[5,3]},
-      {label:'Avg low', data:lo,borderColor:'#1baf7a',backgroundColor:'rgba(27,175,122,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#1baf7a',tension:0.4,fill:false}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+'°'+unit}}},scales:{x:{grid:{color:gc},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+'°'+unit}}}}});
-
-    chPrecip = new Chart(document.getElementById('cPrecip'),{type:'bar',data:{labels:MO,datasets:[{label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.7)',borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' mm'}}},scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
-
-    chET = new Chart(document.getElementById('cET'),{type:'bar',data:{labels:MO,datasets:[
-      {label:'ET₀',data:et,backgroundColor:'rgba(237,161,0,0.78)',borderRadius:4,borderSkipped:false,order:2},
-      {label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.42)',borderRadius:4,borderSkipped:false,order:1}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+' mm'}}},scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
+    const hi=d.map(v=>r2(conv(v.avgHigh))),lo=d.map(v=>r2(conv(v.avgLow))),me=d.map(v=>r2(conv(v.avgMean)));
+    const pr=d.map(v=>Math.round(v.precip)),et=d.map(v=>Math.round(v.et));
+    const gc='rgba(0,0,0,0.06)',tk={color:'#6B7280',font:{size:11}};
+    if(chT)chT.destroy();if(chP)chP.destroy();if(chE)chE.destroy();
+    chT=new Chart(document.getElementById('cTemp'),{type:'line',data:{labels:MO,datasets:[{label:'Avg high',data:hi,borderColor:'#2a78d6',backgroundColor:'rgba(42,120,214,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#2a78d6',tension:0.4,fill:false},{label:'Avg mean',data:me,borderColor:'#9085e9',backgroundColor:'rgba(144,133,233,0.05)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#9085e9',tension:0.4,fill:false,borderDash:[5,3]},{label:'Avg low',data:lo,borderColor:'#1baf7a',backgroundColor:'rgba(27,175,122,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#1baf7a',tension:0.4,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+'°'+unit}}},scales:{x:{grid:{color:gc},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+'°'+unit}}}}});
+    chP=new Chart(document.getElementById('cPrecip'),{type:'bar',data:{labels:MO,datasets:[{label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.7)',borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' mm'}}},scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
+    chE=new Chart(document.getElementById('cET'),{type:'bar',data:{labels:MO,datasets:[{label:'ET₀',data:et,backgroundColor:'rgba(237,161,0,0.78)',borderRadius:4,borderSkipped:false,order:2},{label:'Precipitation',data:pr,backgroundColor:'rgba(42,120,214,0.42)',borderRadius:4,borderSkipped:false,order:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y+' mm'}}},scales:{x:{grid:{display:false},ticks:tk},y:{grid:{color:gc},ticks:{...tk,callback:v=>v+' mm'},beginAtZero:true}}}});
   }
 
-  window.clmUnit = function(u) {
+  window.clmUnit=function(u){
     unit=u;
     document.getElementById('clmC').classList.toggle('on',u==='C');
     document.getElementById('clmF').classList.toggle('on',u==='F');
-    if(D) render();
+    if(D)render();
   };
 
-  document.getElementById('clmInput').addEventListener('keydown', e=>{if(e.key==='Enter')clmGo();});
+  function buildRows(){
+    const u='°'+unit;
+    const headers=['Month','Avg High ('+u+')','Avg Mean ('+u+')','Avg Low ('+u+')','Precipitation (mm)','ET₀ (mm)','Water Deficit (mm)'];
+    let totPr=0,totET=0,annT=0;
+    const rows=D.map((v,i)=>{
+      const def=r2(v.et-v.precip);totPr+=v.precip;totET+=v.et;annT+=v.avgMean;
+      return[MO[i],r2(conv(v.avgHigh)),r2(conv(v.avgMean)),r2(conv(v.avgLow)),Math.round(v.precip),Math.round(v.et),def];
+    });
+    rows.push(['Annual','—',r2(conv(annT/12)),'—',Math.round(totPr),Math.round(totET),r2(totET-totPr)]);
+    return{headers,rows};
+  }
+  function clmDL(content,filename,mime){
+    const blob=new Blob([content],{type:mime+';charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=filename;a.style.display='none';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},500);
+  }
+  window.clmExportCSV=function(){
+    if(!D)return;
+    const{headers,rows}=buildRows();
+    const meta=[['Location',META.city],['Coordinates',META.coord],[META.range],['Source','Open-Meteo ERA5 Historical Weather API'],[]];
+    const esc=v=>{const s=String(v);return s.includes(',')? '"'+s.replace(/"/g,'""')+'"':s;};
+    clmDL([...meta.map(r=>r.map(esc).join(',')),headers.map(esc).join(','),...rows.map(r=>r.map(esc).join(','))].join('
+'),META.filename+'_climate.csv','text/csv');
+  };
+  window.clmExportXLSX=function(){
+    if(!D||typeof XLSX==='undefined'){alert('Excel library not loaded.');return;}
+    const{headers,rows}=buildRows();
+    const ws_data=[['Location',META.city],['Coordinates',META.coord],[META.range],['Source','Open-Meteo ERA5 Historical Weather API'],[],headers,...rows];
+    const ws=XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols']=[14,16,16,14,20,12,22].map(w=>({wch:w}));
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,META.city.slice(0,31));
+    XLSX.writeFile(wb,META.filename+'_climate.xlsx');
+  };
+  window.clmPrint=function(){if(D)window.print();};
 
-  function clmSt(h){ const el=document.getElementById('clmStatus'); el.innerHTML=h; el.style.display='block'; }
-  function clmHS() { document.getElementById('clmStatus').style.display='none'; }
-  function clmH(id){ document.getElementById(id).style.display='none'; }
-  function clmEr(m){ const el=document.getElementById('clmErr'); el.textContent=m; el.style.display='block'; clmHS(); }
-  function clmE(s) { return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  document.getElementById('clmInput').addEventListener('keydown',e=>{if(e.key==='Enter')clmGo();});
+  function clmSt(h){const el=document.getElementById('clmStatus');el.innerHTML=h;el.style.display='block';}
+  function clmHS(){document.getElementById('clmStatus').style.display='none';}
+  function clmH(id){document.getElementById(id).style.display='none';}
+  function clmEr(m){const el=document.getElementById('clmErr');el.textContent=m;el.style.display='block';clmHS();}
+  function clmE(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 })();
 </script>
 
